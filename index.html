@@ -1,0 +1,1101 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#1F3864">
+<meta name="robots" content="noindex, nofollow">
+<title>SESMT Grantel</title>
+<link rel="manifest" href="manifest.json">
+<link rel="icon" href="icone.svg" type="image/svg+xml">
+<link rel="apple-touch-icon" href="icone.svg">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="preload" as="style" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Sans+Condensed:wght@600;700&display=swap" onload="this.onload=null;this.rel='stylesheet'">
+<style>
+  /* ============================================================
+     TEMA DO APP — para mudar o visual, altere só este bloco
+     --navy: cor principal (cabeçalho, botões) · --fundo: cor de fundo
+     --ok / --aviso / --erro: cores das etiquetas de situação
+     ============================================================ */
+  :root{
+    --navy:#1F3864; --navy-escuro:#142546; --alerta:#F5A623;
+    --fundo:#EEF1F5; --card:#FFFFFF; --texto:#18202E; --suave:#4A5568; --linha:#E1E6EE;
+    --ok-bg:#DCEFE3; --ok:#145C32; --aviso-bg:#FFF1E3; --aviso:#8A3D00;
+    --erro-bg:#FBE2E2; --erro:#8E1B1B; --cinza-bg:#E3E7EE; --cinza:#39424F;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--fundo);color:var(--texto);
+    font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px}
+  body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
+  a{color:var(--navy);font-weight:600}
+  header{background:var(--navy);color:#fff;padding:calc(20px + env(safe-area-inset-top,0px)) 70px 24px 20px}
+  header .marca{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:14px;letter-spacing:.08em}
+  header h1{margin:10px 0 2px;font-size:24px;font-weight:600}
+  header p{margin:0;font-size:14px;color:#D3DCEB}
+  main{position:relative;z-index:1;max-width:720px;margin:16px auto 0;padding:0 14px;display:flex;flex-direction:column;gap:16px}
+  .card{background:var(--card);border-radius:14px;padding:16px;box-shadow:0 2px 8px rgba(24,32,46,.08)}
+  .lista{background:var(--card);border-radius:14px;box-shadow:0 2px 8px rgba(24,32,46,.08);overflow:hidden}
+  .item{display:flex;align-items:center;gap:12px;padding:13px 16px;border-bottom:1px solid var(--linha)}
+  .item:last-child{border-bottom:none}
+  .item .info{flex:1;min-width:0;display:flex;flex-direction:column;gap:2px}
+  .item .t{font-weight:600}
+  .sub{font-size:13px;color:var(--suave)}
+  .rotulo{font-size:12px;font-weight:600;color:var(--suave);letter-spacing:.06em}
+  .grande{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:28px;font-weight:700;color:var(--navy)}
+  h2{margin:4px 4px 0;font-size:17px;font-weight:600}
+  .linha{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
+  .grade2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
+  button,.botao{font-family:inherit;font-size:15px;font-weight:600;min-height:46px;border-radius:10px;
+    border:1.5px solid var(--navy);background:var(--navy);color:#fff;padding:0 14px;cursor:pointer;
+    display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
+  button.sec,.botao.sec{background:#fff;color:var(--navy)}
+  button.peq{min-height:38px;font-size:13px;padding:0 12px}
+  button:disabled{opacity:.55;cursor:wait}
+  .chip{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
+  .chip.ok{background:var(--ok-bg);color:var(--ok)} .chip.aviso{background:var(--aviso-bg);color:var(--aviso)}
+  .chip.erro{background:var(--erro-bg);color:var(--erro)} .chip.cinza{background:var(--cinza-bg);color:var(--cinza)}
+  .dias{width:48px;height:48px;border-radius:10px;background:var(--aviso-bg);color:var(--aviso);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
+  .dias b{font-size:17px;line-height:1} .dias span{font-size:10px;font-weight:600}
+  .dias.vencido{background:var(--erro-bg);color:var(--erro)}
+  input,select{font-family:inherit;font-size:16px;min-height:46px;border-radius:10px;border:1.5px solid #B7C0CE;
+    padding:0 12px;width:100%;color:var(--texto);background:#fff}
+  label{font-size:14px;font-weight:600;display:block;margin-bottom:6px}
+  .campo{display:flex;flex-direction:column;gap:6px}
+  .acao{background:var(--card);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;
+    text-decoration:none;color:var(--texto);box-shadow:0 2px 8px rgba(24,32,46,.08);border:none;text-align:left;min-height:auto;font-weight:400}
+  .acao b{font-size:15px}
+  nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #DDE2EA;
+    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+  nav button{background:#fff;border:none;color:#5A6475;border-radius:0;flex-direction:column;gap:3px;
+    font-size:12px;font-weight:500;min-height:64px}
+  nav button.ativo{color:var(--navy);font-weight:700}
+  .secao{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--linha);border-radius:12px}
+  .secao .n{width:52px;height:52px;border-radius:10px;background:var(--cinza-bg);display:flex;align-items:center;
+    justify-content:center;font-weight:700;font-size:18px;color:var(--cinza);flex-shrink:0}
+  .secao .n.tem{background:var(--ok-bg);color:var(--ok)}
+  .escondido{display:none!important}
+  #toast{position:fixed;left:14px;right:14px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;
+    background:#18202E;color:#fff;border-radius:12px;padding:14px 16px;white-space:pre-line;z-index:10;
+    box-shadow:0 6px 18px rgba(0,0,0,.25)}
+  #carregando{position:fixed;inset:0;background:rgba(238,241,245,.7);display:flex;align-items:center;justify-content:center;z-index:9}
+  .giro{width:42px;height:42px;border:4px solid #C9D2E0;border-top-color:var(--navy);border-radius:50%;animation:g 1s linear infinite}
+  @keyframes g{to{transform:rotate(360deg)}}
+  .vazio{padding:18px 16px;color:var(--suave)}
+  svg{flex-shrink:0}
+  .abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:#E3E7EE;padding:4px;border-radius:12px}
+  .abas button{background:transparent;border:none;color:var(--suave);min-height:40px;font-size:14px}
+  .abas button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(24,32,46,.12)}
+  .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
+  .cal .sem{font-size:11px;font-weight:700;color:var(--suave);text-align:center;padding:4px 0}
+  .cal button{min-height:48px;padding:4px 0;border-radius:10px;background:#fff;border:1px solid var(--linha);color:var(--texto);
+    flex-direction:column;gap:3px;font-size:14px;font-weight:600}
+  .cal button.hoje{border:2px solid var(--navy)}
+  .cal button.sel{background:var(--navy);color:#fff}
+  .pontos{display:flex;gap:3px;height:6px}
+  .pontos i{width:6px;height:6px;border-radius:3px;display:block}
+  .barras{display:flex;align-items:flex-end;gap:10px;height:180px;padding-top:24px}
+  .barras .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%}
+  .barras .bar{width:100%;max-width:46px;border-radius:8px 8px 0 0;background:var(--navy);position:relative}
+  .barras .bar span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;color:var(--texto)}
+</style>
+</head>
+<body>
+
+<header style="position:relative">
+  <button onclick="ir('config')" aria-label="Configurações" style="position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+  </button>
+  <div class="marca">SESMT · GRANTEL</div>
+  <h1 id="h-titulo">Carregando…</h1>
+  <p id="h-sub"></p>
+</header>
+
+<main id="tela"></main>
+
+<nav aria-label="Navegação principal">
+  <button data-aba="inicio" class="ativo" onclick="ir('inicio')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Início</button>
+  <button data-aba="agenda" onclick="ir('agenda')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda</button>
+  <button data-aba="dds" onclick="ir('dds')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>DDS</button>
+  <button data-aba="veiculos" onclick="ir('veiculos')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>Veículos</button>
+  <button data-aba="equipe" onclick="ir('equipe')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Equipe</button>
+</nav>
+
+<div id="carregando" class="escondido"><div class="giro" role="status" aria-label="Carregando"></div></div>
+<div id="toast" class="escondido" role="status"></div>
+<input type="file" id="arquivo" accept="image/*" multiple class="escondido">
+
+<script>
+/* ---------- ponte com o Google ---------- */
+/* Endereço do servidor de dados (Apps Script). Não contém dados, só recebe pedidos com login. */
+const API_URL = 'https://script.google.com/macros/s/AKfycby8sd77tSajJuINQpJMGJXFbopy0fUd6L1xZK9FRPwwXEOE6jXU-O3rdjjr67EwSDz3/exec';
+
+function token() { try { return localStorage.getItem('sesmt_token') || ''; } catch (e) { return ''; } }
+async function chamar(corpo) {
+  const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(corpo) });
+  if (!r.ok) throw new Error('Sem resposta do servidor (' + r.status + '). Verifique a internet.');
+  return r.json();
+}
+function run(fn) {
+  const args = Array.prototype.slice.call(arguments, 1);
+  return chamar({ token: token(), fn: fn, args: args }).then(function (res) {
+    if (res.ok) return res.r;
+    if (res.erro === 'SESSAO') { telaLogin(); throw new Error('Sua sessão terminou. Entre de novo.'); }
+    throw new Error(res.erro || 'Erro no servidor');
+  });
+}
+
+/* ---------- LOGIN ---------- */
+function telaLogin(msg) {
+  TOK++;
+  try { localStorage.removeItem('sesmt_token'); } catch (e) { }
+  document.querySelector('nav').classList.add('escondido');
+  cabec('Entrar', 'SESMT Grantel');
+  carregando(false);
+  tela('<section class="card" style="display:flex;flex-direction:column;gap:12px;max-width:420px;width:100%;align-self:center">' +
+    '<div class="campo"><label for="lu">Usuário</label><input id="lu" autocomplete="username" autocapitalize="none"></div>' +
+    '<div class="campo"><label for="ls">Senha</label><input id="ls" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')entrar(this)"></div>' +
+    '<button onclick="entrar(this)">Entrar</button>' +
+    (msg ? '<span class="sub" style="color:var(--erro)">' + esc(msg) + '</span>' : '') + '</section>');
+}
+
+async function entrar(btn) {
+  btn.disabled = true; carregando(true);
+  try {
+    const r = await chamar({ acao: 'login', usuario: $('lu').value, senha: $('ls').value });
+    if (!r.ok) { carregando(false); telaLogin(r.erro); return; }
+    localStorage.setItem('sesmt_token', r.token);
+    document.querySelector('nav').classList.remove('escondido');
+    ir('inicio');
+  } catch (e) { carregando(false); telaLogin(e.message); }
+}
+
+async function sair() {
+  if (!confirm('Sair do app neste aparelho?')) return;
+  try { await chamar({ acao: 'sair', token: token() }); } catch (e) { }
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sesmt') === 0) localStorage.removeItem(k); }); } catch (e) { }
+  telaLogin();
+}
+const E = {};  // estado
+function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
+function num(n) { return n == null || n === '' ? '—' : Number(n).toLocaleString('pt-BR'); }
+function $(id) { return document.getElementById(id); }
+function carregando(on) { $('carregando').classList.toggle('escondido', !on); }
+let toastT;
+function aviso(msg, ms) {
+  const t = $('toast'); t.textContent = msg; t.classList.remove('escondido');
+  clearTimeout(toastT); toastT = setTimeout(function () { t.classList.add('escondido'); }, ms || 5000);
+}
+function falha(e) { carregando(false); aviso('⚠ ' + (e && e.message ? e.message : e), 8000); }
+function tela(html) { $('tela').innerHTML = html; window.scrollTo(0, 0); }
+function cabec(t, s) { $('h-titulo').textContent = t; $('h-sub').textContent = s || ''; }
+
+/* Mostra na hora o que já foi carregado antes e atualiza por trás */
+let TOK = 0;
+async function carregarTela(fn, args, render) {
+  const tok = ++TOK;
+  const k = 'sesmt:' + fn + ':' + JSON.stringify(args || []);
+  let cache = null;
+  try { cache = localStorage.getItem(k); } catch (e) { cache = null; }
+  if (cache) { try { render(JSON.parse(cache)); } catch (e) { cache = null; } }
+  if (!cache) carregando(true);
+  try {
+    const novo = await run.apply(null, [fn].concat(args || []));
+    const s = JSON.stringify(novo);
+    try { localStorage.setItem(k, s); } catch (e) { }
+    if (tok === TOK && s !== cache) render(novo);
+  } catch (e) { if (tok === TOK) falha(e); }
+  if (tok === TOK) carregando(false);
+}
+
+async function limparTudo() {
+  try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sesmt:') === 0) localStorage.removeItem(k); }); } catch (e) { }
+  carregando(true);
+  try { aviso(await run('apiLimparCache')); } catch (e) { falha(e); }
+  carregando(false);
+}
+
+function ir(aba, extra) {
+  document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('ativo', b.dataset.aba === aba); });
+  ({ inicio: verInicio, dds: verDDS, veiculos: verVeiculos, equipe: verEquipe, fadiga: verFadiga, aloj: verAloj, config: verConfig, agenda: verAgenda })[aba](extra);
+}
+
+/* ---------- INÍCIO ---------- */
+function verInicio() {
+  return carregarTela('apiPainel', [], function (p) {
+    E.painel = p;
+    cabec('Painel SESMT', p.obra + ' · ' + p.hoje);
+    const d = p.dds;
+    let h = '<section class="card" style="display:flex;flex-direction:column;gap:14px">';
+    if (d.erro) {
+      h += '<div class="sub">DDS: ' + esc(d.erro) + '</div>';
+    } else {
+      h += '<div class="linha"><div style="display:flex;flex-direction:column;gap:4px">' +
+        '<span class="rotulo">PRÓXIMO DIA DE DDS</span>' +
+        '<span class="grande">' + esc(d.proximaData) + '</span>' +
+        '<span class="sub">' + (d.pronto ? 'Já gerado: ' + esc(d.ultimo ? d.ultimo.codigo : '') : 'Será o nº ' + esc(d.proximoNum)) + '</span></div>' +
+        (d.pronto ? '<span class="chip ok">Pronto</span>' : '<span class="chip aviso">Pendente</span>') + '</div>' +
+        '<div class="grade2">' +
+        (d.pronto && d.ultimo ? '<a class="botao" href="' + esc(d.ultimo.url) + '" target="_blank">Abrir DDS</a>'
+                              : '<button onclick="gerarDDS(this)">Gerar DDS</button>') +
+        '<button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
+    }
+    h += '</section>';
+
+    h += '<h2>Vence nos próximos dias</h2><div class="lista">';
+    if (!p.alerta.length && !p.semRegistro.length) h += '<div class="vazio">Nada vencendo. Tudo em dia ✔</div>';
+    p.alerta.forEach(function (c) {
+      const venc = c.situacao === 'VENCIDO';
+      h += '<div class="item"><div class="dias' + (venc ? ' vencido' : '') + '"><b>' + (venc ? '!' : c.dias) + '</b><span>' + (venc ? 'vencido' : 'dias') + '</span></div>' +
+        '<div class="info"><span class="t">' + esc(c.nome) + '</span><span class="sub">' + esc(c.item) + ' · ' + (venc ? 'venceu ' : 'vence ') + esc(c.proximo) + '</span></div></div>';
+    });
+    p.semRegistro.forEach(function (c) {
+      h += '<div class="item"><div class="dias" style="background:var(--cinza-bg);color:var(--cinza)"><b>?</b><span>sem</span></div>' +
+        '<div class="info"><span class="t">' + esc(c.nome) + '</span><span class="sub">Sem ASO e treinamentos cadastrados</span></div></div>';
+    });
+    h += '</div>';
+
+    h += '<h2>Atalhos</h2><div class="grade2">' +
+      '<button class="acao" onclick="ir(\'veiculos\')"><b>Fotos de veículos</b><span class="sub">' + p.veic.gerados + ' de ' + p.veic.total + ' relatórios · ' + esc(p.veic.mes) + '</span></button>' +
+      '<button class="acao" onclick="ir(\'equipe\')"><b>Equipe</b><span class="sub">' + p.ativos + ' ativos</span></button>' +
+      '<button class="acao" onclick="ir(\'dds\')"><b>Histórico de DDS</b><span class="sub">Abrir os últimos</span></button>' +
+      '<button class="acao" onclick="ir(\'fadiga\')"><b>Controle de fadiga</b><span class="sub">' + (p.fadiga && p.fadiga.pronta ? 'Pronta p/ ' + esc(p.fadiga.data) : 'Gerar fichas do dia') + '</span></button>' +
+      '<button class="acao" onclick="ir(\'aloj\')"><b>Alojamentos</b><span class="sub">Casas, fotos e relatório NR-24</span></button>' +
+      '</div>';
+    tela(h);
+  });
+}
+
+async function gerarDDS(btn) {
+  btn.disabled = true; carregando(true);
+  try { aviso(await run('apiGerarDDS')); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
+}
+async function gerarSemana(btn) {
+  btn.disabled = true; carregando(true);
+  try { aviso(await run('apiGerarSemanaDDS'), 9000); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
+}
+
+/* ---------- DDS ---------- */
+function verDDS() {
+  cabec('DDS', 'Diálogo Diário de Segurança');
+  return carregarTela('apiListaDDS', [], function (l) {
+    let h = '<div class="grade2"><button onclick="gerarDDS(this)">Gerar próximo</button><button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
+    h += '<h2>Últimos gerados</h2><div class="lista">';
+    if (!l.length) h += '<div class="vazio">Nenhum DDS gerado ainda.</div>';
+    l.forEach(function (d) {
+      h += '<div class="item"><div class="info"><span class="t">' + esc(d.codigo) + '</span><span class="sub">' + esc(d.data) + ' · ' + esc(d.pessoas) + ' colaboradores</span></div>' +
+        '<a class="botao sec peq" style="min-height:38px;font-size:13px" href="' + esc(d.url) + '" target="_blank">Abrir</a></div>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+/* ---------- VEÍCULOS ---------- */
+function verVeiculos(mes) {
+  return carregarTela('apiVeiculos', [mes || (E.veic && E.veic.mes) || ''], function (r) {
+    E.veic = r;
+    const feitos = r.veiculos.filter(function (v) { return v.gerado; }).length;
+    cabec('Veículos', 'Relatório fotográfico · ' + feitos + ' de ' + r.veiculos.length + ' gerados');
+    let h = '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+      '<div class="campo"><label for="mes">Mês de referência</label><input type="month" id="mes" value="' + esc(r.mes) + '" onchange="verVeiculos(this.value)"></div>' +
+      '<button onclick="gerarVeiculos(this)">Gerar relatórios pendentes</button></section>';
+    h += '<div class="lista">';
+    r.veiculos.forEach(function (v, i) {
+      const total = v.fotos.reduce(function (a, b) { return a + b; }, 0);
+      const chip = v.gerado ? '<span class="chip ok">Gerado</span>'
+        : (total && v.leitura ? '<span class="chip aviso">Pronto p/ gerar</span>'
+        : (total ? '<span class="chip aviso">Falta leitura</span>' : '<span class="chip cinza">Pendente</span>'));
+      h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px" onclick="verVeiculo(' + i + ')">' +
+        '<div class="info"><span class="t">' + esc(v.tipo) + '</span><span class="sub">' + esc(v.placa) + ' · ' + total + ' fotos</span></div>' + chip + '</button>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+function verVeiculo(i) {
+  TOK++;
+  const r = E.veic, v = r.veiculos[i];
+  E.vi = i;
+  const un = v.medicao === 'HORÍMETRO' ? 'h' : 'km';
+  cabec(v.tipo + ' · ' + v.placa, v.marca + ' · ' + v.operador);
+  let h = '<button class="sec" onclick="verVeiculos()" style="align-self:flex-start">‹ Voltar à frota</button>';
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">FOTOS · ' + esc(r.mes) + '</span>';
+  r.secoes.forEach(function (s, k) {
+    h += '<div class="secao"><div class="n' + (v.fotos[k] ? ' tem' : '') + '">' + v.fotos[k] + '</div>' +
+      '<div class="info" style="flex:1"><span class="t">' + esc(s) + '</span></div>' +
+      '<button class="sec peq" onclick="escolherFotos(' + k + ')">+ Fotos</button></div>';
+  });
+  if (v.pastaUrl) h += '<a href="' + esc(v.pastaUrl) + '" target="_blank" class="sub">Abrir a pasta no Drive</a>';
+  h += '</section>';
+
+  const l = v.leitura;
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">' + (un === 'h' ? 'HORÍMETRO' : 'ODÔMETRO') + '</span>' +
+    '<div class="grade2"><div><div class="sub">Leitura anterior</div><b style="font-size:20px">' + (l && l.anterior != null ? num(l.anterior) + ' ' + un : '—') + '</b></div>' +
+    '<div><div class="sub">Saldo do mês</div><b style="font-size:20px">' + (l && l.saldo != null ? num(l.saldo) + ' ' + un : '—') + '</b></div></div>' +
+    '<div class="campo"><label for="leit">Leitura atual do painel</label>' +
+    '<input id="leit" inputmode="numeric" placeholder="Só números" value="' + (l ? esc(l.atual) : '') + '"></div>' +
+    '<button onclick="salvarLeitura(this)">Salvar leitura</button></section>';
+
+  if (v.gerado) h += '<a class="botao" href="' + esc(v.gerado.url) + '" target="_blank">Abrir relatório ' + esc(v.gerado.codigo) + '</a>';
+  else h += '<button onclick="gerarVeiculos(this)">Gerar relatório</button>';
+  tela(h);
+}
+
+function escolherFotos(k) {
+  E.secao = k;
+  const inp = $('arquivo'); inp.value = '';
+  inp.onchange = function () { enviarFotos(Array.prototype.slice.call(inp.files)); };
+  inp.click();
+}
+
+function reduzir(file, max) {
+  return new Promise(function (res, rej) {
+    const img = new Image(), url = URL.createObjectURL(file);
+    img.onload = function () {
+      const s = Math.min(1, max / Math.max(img.width, img.height));
+      const c = document.createElement('canvas');
+      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
+      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
+      URL.revokeObjectURL(url);
+      res(c.toDataURL('image/jpeg', 0.85));
+    };
+    img.onerror = function () { rej(new Error('Não consegui ler a imagem ' + file.name)); };
+    img.src = url;
+  });
+}
+
+async function enviarFotos(files) {
+  if (!files.length) return;
+  const v = E.veic.veiculos[E.vi];
+  files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
+  carregando(true);
+  try {
+    for (let i = 0; i < files.length; i++) {
+      aviso('Enviando foto ' + (i + 1) + ' de ' + files.length + '…', 60000);
+      const dataUrl = await reduzir(files[i], 1600);
+      const nome = String(files[i].lastModified || Date.now()) + '_' + String(i).padStart(2, '0') + '.jpg';
+      await run('apiUploadFoto', E.veic.mes, v.placa, E.secao, nome, dataUrl);
+    }
+    aviso('✔ ' + files.length + ' foto(s) enviada(s)');
+    E.veic = await run('apiVeiculos', E.veic.mes);
+    verVeiculo(E.vi);
+  } catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function salvarLeitura(btn) {
+  const v = E.veic.veiculos[E.vi];
+  btn.disabled = true; carregando(true);
+  try {
+    v.leitura = await run('apiSalvarLeitura', E.veic.mes, v.placa, $('leit').value);
+    aviso('✔ Leitura salva');
+    verVeiculo(E.vi);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+async function gerarVeiculos(btn) {
+  btn.disabled = true; carregando(true);
+  aviso('Gerando relatórios… pode levar alguns minutos.', 300000);
+  try {
+    const msg = await run('apiGerarVeiculos', E.veic.mes);
+    aviso(msg, 15000);
+    await verVeiculos(E.veic.mes);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* ---------- EQUIPE ---------- */
+function verEquipe() {
+  return carregarTela('apiColaboradores', [], function (l) { E.colab = l; desenharEquipe(''); });
+}
+
+function desenharEquipe(filtro) {
+  const lista = E.colab;
+  const ativos = lista.filter(function (c) { return c.status === 'ATIVO'; }).length;
+  cabec('Equipe', ativos + ' ativos · ' + (lista.length - ativos) + ' desligados');
+  const f = filtro.toUpperCase();
+  let h = '<section class="card" style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="campo"><label for="busca">Buscar</label><input id="busca" placeholder="Nome ou função" value="' + esc(filtro) + '" oninput="desenharEquipe(this.value)"></div></section>';
+  h += '<div class="lista">';
+  lista.filter(function (c) { return !f || c.nome.indexOf(f) >= 0 || c.funcao.toUpperCase().indexOf(f) >= 0; })
+    .forEach(function (c) {
+      const sit = c.status === 'DESLIGADO' ? '<span class="chip cinza">Desligado</span>'
+        : c.situacao === 'VENCIDO' ? '<span class="chip erro">Vencido</span>'
+        : c.situacao === 'VENCE EM BREVE' ? '<span class="chip aviso">' + esc(c.item) + ' ' + esc(c.proximo) + '</span>'
+        : c.situacao === 'SEM REGISTRO' ? '<span class="chip cinza">Sem registro</span>'
+        : '<span class="chip ok">Em dia</span>';
+      const botao = c.status === 'ATIVO'
+        ? '<button class="sec peq" onclick="mudarStatus(' + lista.indexOf(c) + ',\'DESLIGADO\',this)">Desligar</button>'
+        : '<button class="peq" onclick="mudarStatus(' + lista.indexOf(c) + ',\'ATIVO\',this)">Reativar</button>';
+      h += '<div class="item"' + (c.status === 'DESLIGADO' ? ' style="opacity:.6"' : '') + '><div class="info"><span class="t">' + esc(c.nome) + '</span><span class="sub">' + esc(c.funcao) + '</span><div>' + sit + '</div></div>' + botao + '</div>';
+    });
+  h += '</div>';
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">INCLUIR COLABORADOR</span>' +
+    '<div class="campo"><label for="nn">Nome completo</label><input id="nn"></div>' +
+    '<div class="campo"><label for="nf">Função</label><input id="nf"></div>' +
+    '<button onclick="novoColab(this)">Incluir na lista</button>' +
+    '<span class="sub">Depois, lance o ASO e os treinamentos dele na planilha.</span></section>';
+  const foco = document.activeElement && document.activeElement.id === 'busca';
+  $('tela').innerHTML = h;
+  if (foco) { const b = $('busca'); b.focus(); b.setSelectionRange(b.value.length, b.value.length); }
+}
+
+async function mudarStatus(idx, status, btn) {
+  const linha = E.colab[idx].linha, nome = E.colab[idx].nome;
+  if (status === 'DESLIGADO' && !confirm('Tirar ' + nome + ' do DDS e da lista de ativos?')) return;
+  btn.disabled = true; carregando(true);
+  try {
+    E.colab = await run('apiSetStatus', linha, nome, status);
+    desenharEquipe($('busca') ? $('busca').value : '');
+    aviso('✔ ' + nome + (status === 'ATIVO' ? ' reativado' : ' desligado'));
+  } catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function novoColab(btn) {
+  btn.disabled = true; carregando(true);
+  try {
+    E.colab = await run('apiNovoColaborador', $('nn').value, $('nf').value);
+    desenharEquipe('');
+    aviso('✔ Colaborador incluído');
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* ---------- FADIGA ---------- */
+function verFadiga() {
+  cabec('Controle de fadiga', 'Escolha quem vai dirigir');
+  return carregarTela('apiFadigaOpcoes', [], function (f) {
+    E.fad = f;
+    let h = '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+      '<div class="linha"><div style="display:flex;flex-direction:column;gap:4px"><span class="rotulo">PRÓXIMO DIA DE TRABALHO</span>' +
+      '<span class="grande" style="font-size:24px">' + esc(f.dataTxt) + '</span>' +
+      '<span class="sub">Próxima ficha: nº ' + esc(String(f.proximoNum).padStart(6, '0')) + '</span></div>' +
+      (f.pronta ? '<span class="chip ok">Pronta</span>' : '<span class="chip aviso">Pendente</span>') + '</div>' +
+      '<div class="campo"><label for="fdata">Data da ficha</label><input type="date" id="fdata" value="' + esc(f.dataISO) + '"></div></section>';
+
+    h += '<h2>Motoristas</h2><div class="lista">';
+    f.pessoas.forEach(function (p, i) {
+      if (i > 0 && f.pessoas[i - 1].sim && !p.sim) h += '<div class="item sub" style="font-weight:600;background:#F4F6F9">Outros colaboradores ativos</div>';
+      h += '<label class="item" style="cursor:pointer"><input type="checkbox" class="fchk" value="' + i + '" style="width:24px;height:24px;min-height:auto;flex-shrink:0">' +
+        '<div class="info"><span class="t">' + esc(p.nome) + '</span><span class="sub">' + esc(p.funcao) + '</span></div></label>';
+    });
+    h += '</div><button onclick="gerarFadigaApp(this)">Gerar fichas de fadiga</button>';
+
+    h += '<h2>Últimas geradas</h2><div class="lista">';
+    if (!f.historico.length) h += '<div class="vazio">Nenhuma ficha gerada ainda.</div>';
+    f.historico.forEach(function (r) {
+      h += '<div class="item"><div class="info"><span class="t">' + esc(r.data) + ' · ' + esc(r.qtd) + ' ficha(s)</span>' +
+        '<span class="sub">' + esc(r.motoristas) + '</span><span class="sub">' + esc(r.codigos) + '</span></div>' +
+        '<a class="botao sec" style="min-height:38px;font-size:13px" href="' + esc(r.url) + '" target="_blank">Abrir</a></div>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+async function gerarFadigaApp(btn) {
+  const nomes = Array.prototype.slice.call(document.querySelectorAll('.fchk:checked'))
+    .map(function (c) { return E.fad.pessoas[Number(c.value)].nome; });
+  if (!nomes.length) { aviso('Marque pelo menos um motorista.'); return; }
+  btn.disabled = true; carregando(true);
+  try {
+    aviso(await run('apiGerarFadiga', $('fdata').value, nomes), 8000);
+    await verFadiga();
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* ---------- ALOJAMENTOS ---------- */
+function verAloj(mes) {
+  return carregarTela('apiAlojamentos', [mes || (E.aloj && E.aloj.mes) || ''], function (r) {
+    E.aloj = r;
+    const ativas = r.casas.filter(function (c) { return c.status === 'ATIVA'; });
+    const feitos = ativas.filter(function (c) { return c.gerado; }).length;
+    cabec('Alojamentos', 'Relatório NR-24 · ' + feitos + ' de ' + ativas.length + ' gerados');
+    let h = '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+      '<div class="campo"><label for="ames">Mês de referência</label><input type="month" id="ames" value="' + esc(r.mes) + '" onchange="verAloj(this.value)"></div>' +
+      '<span class="sub">Nº do documento do mês: ' + (r.numero ? '<b>' + esc(r.numero) + '</b>' : 'definido no primeiro relatório gerado') + '</span>' +
+      '<div class="grade2"><button onclick="gerarAlojPendentes(this)">Gerar pendentes</button><button class="sec" onclick="formCasa(null)">+ Nova casa</button></div></section>';
+    h += '<div class="lista">';
+    if (!r.casas.length) h += '<div class="vazio">Nenhuma casa cadastrada.</div>';
+    r.casas.forEach(function (c) {
+      let chip;
+      if (c.status !== 'ATIVA') chip = '<span class="chip cinza">Inativa</span>';
+      else if (c.gerado) chip = '<span class="chip ok">Gerado</span>';
+      else if (c.nFotos && c.inspecao && c.inspecao.data) chip = '<span class="chip aviso">Pronto p/ gerar</span>';
+      else if (!c.inspecao || !c.inspecao.data) chip = '<span class="chip cinza">Falta inspeção</span>';
+      else chip = '<span class="chip cinza">Faltam fotos</span>';
+      h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (c.status !== 'ATIVA' ? ';opacity:.6' : '') + '" onclick="verCasa(\'' + esc(c.id) + '\')">' +
+        '<div class="info"><span class="t">' + esc(c.identificacao) + '</span><span class="sub">' + c.nFotos + ' fotos' +
+        (c.inspecao && c.inspecao.nNc ? ' · ' + c.inspecao.nNc + ' não conforme(s)' : '') + '</span></div>' + chip + '</button>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+async function gerarAlojPendentes(btn) {
+  btn.disabled = true; carregando(true);
+  aviso('Gerando relatórios dos alojamentos… pode levar alguns minutos.', 300000);
+  try { aviso(await run('apiAlojGerarPendentes', E.aloj.mes), 15000); await verAloj(E.aloj.mes); }
+  catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+async function verCasa(id) {
+  TOK++;
+  carregando(true);
+  try {
+    const d = E.casa = await run('apiAlojCasa', E.aloj.mes, id);
+    E.nc = {};
+    ((d.inspecao && d.inspecao.nc) || []).forEach(function (n) { E.nc[n.i] = n.obs || ''; });
+    desenharCasa();
+    carregarMiniaturas_();
+  } catch (e) { falha(e); }
+  carregando(false);
+}
+
+/* As miniaturas das fotos chegam depois, sem travar a tela */
+async function carregarMiniaturas_() {
+  const casa = E.casa;
+  if (!casa || !casa.fotos.length || casa.fotos.every(function (f) { return f.thumb; })) return;
+  try {
+    const fotos = await run('apiAlojFotos', E.aloj.mes, casa.casa.id, true);
+    if (E.casa !== casa) return;
+    casa.fotos = fotos;
+    const y = window.scrollY; guardarRascunhoCasa(); desenharCasa(); window.scrollTo(0, y);
+  } catch (e) { }
+}
+
+function desenharCasa() {
+  const d = E.casa, c = d.casa, ins = d.inspecao || {};
+  cabec(c.identificacao, 'Mês ' + E.aloj.mes + ' · ' + d.fotos.length + ' fotos');
+  let h = '<button class="sec" onclick="verAloj()" style="align-self:flex-start">‹ Voltar às casas</button>';
+
+  // Fotos
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">FOTOS DO MÊS</span>' +
+    '<div class="campo"><label for="aleg">Legenda das próximas fotos</label><select id="aleg" onchange="$(\'alego\').classList.toggle(\'escondido\', this.value !== \'__OUTRA\')">' +
+    d.legendas.map(function (l) { return '<option>' + esc(l) + '</option>'; }).join('') +
+    '<option value="__OUTRA">Outra…</option></select>' +
+    '<input id="alego" class="escondido" placeholder="Escreva a legenda"></div>' +
+    '<button onclick="escolherFotosCasa()">+ Tirar / adicionar fotos</button>';
+  if (!d.fotos.length) h += '<span class="sub">Nenhuma foto neste mês ainda.</span>';
+  h += '<div class="grade2">';
+  d.fotos.forEach(function (f, i) {
+    h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:#E3E7EE">'
+               : '<div style="aspect-ratio:4/3;background:#E3E7EE"></div>') +
+      '<div style="padding:8px;display:flex;flex-direction:column;gap:6px"><span class="sub"><b>Foto ' + String(i + 1).padStart(2, '0') + '</b> · ' + esc(f.legenda || 'sem legenda') + '</span>' +
+      '<div style="display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="trocarLegenda(' + i + ')">Legenda</button>' +
+      '<button class="sec peq" style="flex:1" onclick="excluirFotoCasa(' + i + ')">Excluir</button></div></div></div>';
+  });
+  h += '</div></section>';
+
+  // Inspeção
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">INSPEÇÃO DO MÊS</span>' +
+    '<div class="grade2"><div class="campo"><label for="adata">Data</label><input type="date" id="adata" value="' + esc(ins.data || '') + '"></div>' +
+    '<div class="campo"><label for="ahora">Horário</label><input type="time" id="ahora" value="' + esc(ins.horario || '') + '"></div></div>' +
+    '<span class="sub">Todos os itens vêm como Conforme. Toque nos que estiverem Não Conformes.</span><div class="lista" style="box-shadow:none;border:1px solid var(--linha)">';
+  let grupo = '';
+  d.checklist.forEach(function (it) {
+    if (it.grupo !== grupo) { grupo = it.grupo; h += '<div class="item sub" style="font-weight:700;background:#F4F6F9">' + esc(grupo) + '</div>'; }
+    const nc = it.i in E.nc;
+    h += '<div class="item" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;gap:10px;align-items:center">' +
+      '<span style="flex:1;font-size:14px">' + esc(it.texto) + '</span>' +
+      '<button class="peq ' + (nc ? '' : 'sec') + '" style="' + (nc ? 'background:var(--erro);border-color:var(--erro)' : '') + '" onclick="alternarNc(' + it.i + ')">' + (nc ? 'Não conforme' : 'Conforme') + '</button></div>' +
+      (nc ? '<input placeholder="O que está errado? (vai para Pontos de Atenção)" value="' + esc(E.nc[it.i]) + '" oninput="E.nc[' + it.i + ']=this.value">' : '') + '</div>';
+  });
+  h += '</div>' +
+    '<div class="campo"><label for="apontos">Pontos de atenção (um por linha)</label><textarea id="apontos" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(ins.pontos || '') + '</textarea></div>' +
+    '<div class="campo"><label for="aobs">Observações do mês (um por linha)</label><textarea id="aobs" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(ins.obs || '') + '</textarea></div>' +
+    '<button onclick="salvarInspecaoCasa(this)">Salvar inspeção</button></section>';
+
+  // Dados da casa
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">DADOS DA CASA</span>' + camposCasa(c) +
+    '<button class="sec" onclick="salvarCasa(this,\'' + esc(c.id) + '\')">Salvar dados da casa</button>' +
+    (c.status === 'ATIVA' ? '<button class="sec" onclick="statusCasa(\'INATIVA\')">Desativar casa (entregue)</button>'
+                          : '<button class="sec" onclick="statusCasa(\'ATIVA\')">Reativar casa</button>') + '</section>';
+
+  // Relatório
+  if (d.gerado) {
+    h += '<div class="grade2"><a class="botao" href="' + esc(d.gerado.url) + '" target="_blank">Abrir planilha</a>' +
+      (d.gerado.pdf ? '<a class="botao sec" href="' + esc(d.gerado.pdf) + '" target="_blank">Abrir PDF</a>' : '') + '</div>' +
+      '<span class="sub">Para refazer, apague o relatório no Drive e gere de novo (o número do mês é mantido).</span>';
+  } else {
+    h += '<button onclick="gerarCasa(this)">Gerar relatório desta casa</button>';
+  }
+  tela(h);
+}
+
+function camposCasa(c) {
+  c = c || {};
+  const campo = function (id, rot, val, tipo) {
+    return '<div class="campo"><label for="' + id + '">' + rot + '</label><input id="' + id + '" ' + (tipo === 'n' ? 'inputmode="numeric"' : '') + ' value="' + esc(val == null ? '' : val) + '"></div>';
+  };
+  const area = function (id, rot, val) {
+    return '<div class="campo"><label for="' + id + '">' + rot + '</label><textarea id="' + id + '" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(val || '') + '</textarea></div>';
+  };
+  return campo('cident', 'Identificação (endereço)', c.identificacao) +
+    '<div class="grade2">' + campo('ccom', 'Nº de cômodos', c.comodos, 'n') + campo('cqua', 'Nº de quartos', c.quartos, 'n') +
+    campo('csan', 'Nº de sanitários', c.sanitarios, 'n') + campo('cchu', 'Nº de chuveiros', c.chuveiros, 'n') +
+    campo('caloj', 'Nº de alojados', c.alojados, 'n') + '</div>' +
+    area('cdesc', 'Descrição dos cômodos (um por linha)', c.descricao) +
+    area('cobsf', 'Observações fixas (saem todo mês)', c.obsFixas);
+}
+
+function lerCamposCasa(id, status) {
+  return { id: id || '', identificacao: $('cident').value, comodos: $('ccom').value, quartos: $('cqua').value,
+           sanitarios: $('csan').value, chuveiros: $('cchu').value, alojados: $('caloj').value,
+           descricao: $('cdesc').value, obsFixas: $('cobsf').value, status: status || 'ATIVA' };
+}
+
+function formCasa() {
+  TOK++;
+  cabec('Nova casa', 'Cadastro de alojamento');
+  tela('<button class="sec" onclick="verAloj()" style="align-self:flex-start">‹ Voltar às casas</button>' +
+    '<section class="card" style="display:flex;flex-direction:column;gap:12px">' + camposCasa({}) +
+    '<button onclick="salvarCasa(this,\'\')">Cadastrar casa</button></section>');
+}
+
+async function salvarCasa(btn, id) {
+  btn.disabled = true; carregando(true);
+  try {
+    const status = E.casa && id ? E.casa.casa.status : 'ATIVA';
+    const novoId = await run('apiCfgSalvarCasa', lerCamposCasa(id, status));
+    aviso('✔ Dados da casa salvos');
+    await verCasa(novoId);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+async function statusCasa(status) {
+  if (status === 'INATIVA' && !confirm('Desativar esta casa? Ela sai dos relatórios, mas o histórico continua guardado.')) return;
+  carregando(true);
+  try { await run('apiAlojStatus', E.casa.casa.id, status); aviso('✔ Casa ' + (status === 'ATIVA' ? 'reativada' : 'desativada')); await verAloj(); }
+  catch (e) { falha(e); }
+  carregando(false);
+}
+
+function alternarNc(i) {
+  if (i in E.nc) delete E.nc[i]; else E.nc[i] = '';
+  const y = window.scrollY; guardarRascunhoCasa(); desenharCasa(); window.scrollTo(0, y);
+}
+
+function guardarRascunhoCasa() {
+  const ins = E.casa.inspecao || (E.casa.inspecao = {});
+  if ($('adata')) ins.data = $('adata').value;
+  if ($('ahora')) ins.horario = $('ahora').value;
+  if ($('apontos')) ins.pontos = $('apontos').value;
+  if ($('aobs')) ins.obs = $('aobs').value;
+}
+
+async function salvarInspecaoCasa(btn) {
+  guardarRascunhoCasa();
+  const ins = E.casa.inspecao;
+  btn.disabled = true; carregando(true);
+  try {
+    await run('apiAlojSalvarInspecao', E.aloj.mes, E.casa.casa.id, {
+      data: ins.data, horario: ins.horario, pontos: ins.pontos, obs: ins.obs,
+      nc: Object.keys(E.nc).map(function (k) { return { i: Number(k), obs: E.nc[k] }; })
+    });
+    aviso('✔ Inspeção salva');
+  } catch (e) { falha(e); }
+  btn.disabled = false; carregando(false);
+}
+
+function escolherFotosCasa() {
+  const sel = $('aleg').value;
+  const leg = sel === '__OUTRA' ? $('alego').value.trim() : sel;
+  if (!leg) { aviso('Escreva a legenda antes de escolher as fotos.'); return; }
+  guardarRascunhoCasa();
+  const inp = $('arquivo'); inp.value = '';
+  inp.onchange = function () { enviarFotosCasa(Array.prototype.slice.call(inp.files), leg); };
+  inp.click();
+}
+
+async function enviarFotosCasa(files, leg) {
+  if (!files.length) return;
+  files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
+  carregando(true);
+  try {
+    for (let i = 0; i < files.length; i++) {
+      aviso('Enviando foto ' + (i + 1) + ' de ' + files.length + '…', 60000);
+      const dataUrl = await reduzir(files[i], 1100);
+      await run('apiAlojUploadFoto', E.aloj.mes, E.casa.casa.id, leg, dataUrl, i);
+    }
+    aviso('✔ ' + files.length + ' foto(s) enviada(s) como ' + leg);
+    E.casa.fotos = await run('apiAlojFotos', E.aloj.mes, E.casa.casa.id, true);
+    desenharCasa();
+  } catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function trocarLegenda(i) {
+  const f = E.casa.fotos[i];
+  const nova = prompt('Nova legenda da foto ' + (i + 1) + ':', f.legenda || '');
+  if (nova == null || !nova.trim()) return;
+  guardarRascunhoCasa(); carregando(true);
+  try { await run('apiAlojLegenda', f.id, nova); f.legenda = nova.trim().toUpperCase(); desenharCasa(); aviso('✔ Legenda alterada'); }
+  catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function excluirFotoCasa(i) {
+  if (!confirm('Excluir a foto ' + (i + 1) + '? Ela vai para a lixeira do Drive.')) return;
+  guardarRascunhoCasa(); carregando(true);
+  try { await run('apiAlojExcluirFoto', E.casa.fotos[i].id); E.casa.fotos.splice(i, 1); desenharCasa(); aviso('✔ Foto excluída'); }
+  catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function gerarCasa(btn) {
+  btn.disabled = true; carregando(true);
+  aviso('Gerando o relatório… pode levar 1 ou 2 minutos.', 300000);
+  try { aviso(await run('apiAlojGerar', E.aloj.mes, E.casa.casa.id), 12000); await verCasa(E.casa.casa.id); }
+  catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* ---------- CONFIGURAÇÕES ---------- */
+function verConfig() {
+  TOK++;
+  cabec('Configurações', 'Altere os dados sem abrir a planilha');
+  const op = [
+    ['cfgParametros()', 'Parâmetros gerais', 'Obra, números dos documentos, responsáveis, e-mail, PDF'],
+    ['cfgTabela(\'colaboradores\')', 'Colaboradores', 'Nome, função, ASO e treinamentos, DDS e fadiga'],
+    ['cfgTabela(\'veiculos\')', 'Veículos', 'Frota, placas, operadores, km ou horímetro'],
+    ['cfgCalendario()', 'Calendário da obra', 'Dias de trabalho, feriados e dias extras'],
+    ['cfgTabela(\'docs\')', 'Itens do checklist', 'Documentos do checklist mensal e da agenda'],
+    ['limparTudo()', 'Atualizar dados agora', 'Use se você mudou algo direto na planilha'],
+    ['sair()', 'Sair do app', 'Desconecta este aparelho (vai pedir a senha de novo)'],
+    ['ir(\'aloj\')', 'Alojamentos', 'Nome e dados de cada casa (toque na casa → Dados da casa)']
+  ];
+  tela('<div class="lista">' + op.map(function (o) {
+    return '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="' + o[0] + '">' +
+      '<div class="info"><span class="t">' + o[1] + '</span><span class="sub">' + o[2] + '</span></div><span aria-hidden="true">›</span></button>';
+  }).join('') + '</div>');
+}
+
+/* Parâmetros gerais */
+function cfgParametros() {
+  cabec('Parâmetros gerais', 'Aba CONFIG da planilha');
+  return carregarTela('apiCfgParametros', [], function (ps) {
+    E.params = ps;
+    let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button><div class="lista">';
+    ps.forEach(function (p, i) {
+      h += '<div class="item" style="flex-direction:column;align-items:stretch;gap:6px">' +
+        '<label for="pp' + i + '" style="margin:0">' + esc(p.nome) + '</label>' +
+        (p.obs ? '<span class="sub">' + esc(p.obs) + '</span>' : '') +
+        (p.auto ? '<span class="sub"><b>' + esc(p.valor) + '</b> (automático)</span>'
+                : '<div style="display:flex;gap:8px"><input id="pp' + i + '" value="' + esc(p.valor) + '"><button class="peq" onclick="salvarParametro(' + i + ',this)">Salvar</button></div>') +
+        '</div>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+async function salvarParametro(i, btn) {
+  btn.disabled = true;
+  try { await run('apiCfgSalvarParametro', E.params[i].nome, $('pp' + i).value); aviso('✔ ' + E.params[i].nome + ' salvo'); }
+  catch (e) { falha(e); }
+  btn.disabled = false;
+}
+
+/* Colaboradores / Veículos (editor genérico) */
+function cfgTabela(chave, filtro) {
+  return carregarTela('apiCfgTabela', [chave], function (t) { E.tab = t; desenharTabela(filtro || ''); });
+}
+
+function desenharTabela(filtro) {
+  const t = E.tab, f = filtro.toUpperCase();
+  const ativos = t.linhas.filter(function (l) { return l.ativo; }).length;
+  cabec(t.titulo, ativos + ' ativos · ' + (t.linhas.length - ativos) + ' inativos');
+  let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button>' +
+    '<section class="card" style="display:flex;flex-direction:column;gap:10px">' +
+    '<div class="campo"><label for="tbusca">Buscar</label><input id="tbusca" value="' + esc(filtro) + '" oninput="desenharTabela(this.value)"></div>' +
+    '<button onclick="formLinha(-1)">+ Incluir</button></section><div class="lista">';
+  t.linhas.forEach(function (l, i) {
+    const txt = (l.dados[t.campoChave] + ' ' + t.resumo.map(function (r) { return l.dados[r] || ''; }).join(' ')).toUpperCase();
+    if (f && txt.indexOf(f) < 0) return;
+    h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (l.ativo ? '' : ';opacity:.55') + '" onclick="formLinha(' + i + ')">' +
+      '<div class="info"><span class="t">' + esc(l.dados[t.campoChave]) + '</span><span class="sub">' + esc(t.resumo.map(function (r) { return l.dados[r] || ''; }).filter(String).join(' · ')) + '</span></div>' +
+      (l.ativo ? '<span class="chip ok">' + esc(t.ativo) + '</span>' : '<span class="chip cinza">' + esc(t.inativo) + '</span>') + '</button>';
+  });
+  const foco = document.activeElement && document.activeElement.id === 'tbusca';
+  tela(h + '</div>');
+  if (foco) { const b = $('tbusca'); b.focus(); b.setSelectionRange(b.value.length, b.value.length); }
+}
+
+function formLinha(i) {
+  TOK++;
+  const t = E.tab, l = i >= 0 ? t.linhas[i] : { linha: 0, dados: {}, ativo: true };
+  E.tabIdx = i;
+  cabec(i >= 0 ? l.dados[t.campoChave] : 'Incluir em ' + t.titulo, t.titulo);
+  let h = '<button class="sec" onclick="desenharTabela(\'\')" style="align-self:flex-start">‹ ' + esc(t.titulo) + '</button>' +
+    '<section class="card" style="display:flex;flex-direction:column;gap:12px">';
+  t.colunas.forEach(function (c, k) {
+    const v = l.dados[c.nome] == null ? '' : l.dados[c.nome];
+    if (c.tipo === 'auto') {
+      if (i >= 0) h += '<div class="campo"><span class="sub">' + esc(c.nome) + '</span><b>' + esc(v || '—') + '</b></div>';
+      return;
+    }
+    h += '<div class="campo"><label for="tc' + k + '">' + esc(c.nome) + '</label>';
+    if (c.tipo === 'lista') {
+      h += '<select id="tc' + k + '"><option value=""></option>' + c.opcoes.map(function (o) {
+        return '<option' + (String(o) === String(v) ? ' selected' : '') + '>' + esc(o) + '</option>'; }).join('') + '</select>';
+    } else if (c.tipo === 'data' && (v === '' || /^\d{4}-\d{2}-\d{2}$/.test(v))) {
+      h += '<input type="date" id="tc' + k + '" value="' + esc(v) + '">';
+    } else {
+      h += '<input id="tc' + k + '" value="' + esc(v) + '">';
+    }
+    h += '</div>';
+  });
+  h += '<button onclick="salvarLinha(this)">Salvar</button>';
+  if (i >= 0) h += l.ativo ? '<button class="sec" onclick="statusLinha(false)">Marcar como ' + esc(t.inativo) + '</button>'
+                           : '<button class="sec" onclick="statusLinha(true)">Marcar como ' + esc(t.ativo) + '</button>';
+  tela(h + '</section>');
+}
+
+async function salvarLinha(btn) {
+  const t = E.tab, i = E.tabIdx, dados = {};
+  t.colunas.forEach(function (c, k) { if (c.tipo !== 'auto' && $('tc' + k)) dados[c.nome] = $('tc' + k).value; });
+  btn.disabled = true; carregando(true);
+  try {
+    await run('apiCfgSalvarLinha', t.chave, i >= 0 ? t.linhas[i].linha : 0, dados);
+    aviso('✔ Salvo');
+    await cfgTabela(t.chave);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+async function statusLinha(ativo) {
+  const t = E.tab, l = t.linhas[E.tabIdx];
+  if (!ativo && !confirm('Marcar ' + l.dados[t.campoChave] + ' como ' + t.inativo + '?')) return;
+  carregando(true);
+  try { await run('apiCfgStatus', t.chave, l.linha, ativo); aviso('✔ Atualizado'); await cfgTabela(t.chave); }
+  catch (e) { falha(e); }
+  carregando(false);
+}
+
+/* Calendário */
+function cfgCalendario() {
+  return carregarTela('apiCfgCalendario', [], function (c) { E.cal = c; desenharCalendario(); });
+}
+
+function desenharCalendario() {
+  const c = E.cal;
+  cabec('Calendário da obra', 'Usado pelo DDS e pela fadiga');
+  const lista = function (nome, arr, rot) {
+    let h = '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">' + rot + '</span>';
+    arr.forEach(function (f, i) {
+      h += '<div style="display:flex;gap:8px;align-items:center"><input type="date" value="' + esc(f.data) + '" onchange="E.cal.' + nome + '[' + i + '].data=this.value" style="flex:0 0 160px">' +
+        '<input value="' + esc(f.desc) + '" placeholder="Descrição" oninput="E.cal.' + nome + '[' + i + '].desc=this.value">' +
+        '<button class="sec peq" aria-label="Remover" onclick="E.cal.' + nome + '.splice(' + i + ',1);desenharCalendario()">✕</button></div>';
+    });
+    return h + '<button class="sec" onclick="E.cal.' + nome + '.push({data:\'\',desc:\'\'});desenharCalendario()">+ Adicionar data</button></section>';
+  };
+  let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button>' +
+    '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">DIAS COM EXPEDIENTE</span><div class="grade2">';
+  c.semana.forEach(function (d, i) {
+    h += '<label class="item" style="border:1px solid var(--linha);border-radius:10px;cursor:pointer;margin:0">' +
+      '<input type="checkbox" ' + (d.sim ? 'checked' : '') + ' onchange="E.cal.semana[' + i + '].sim=this.checked" style="width:22px;height:22px;min-height:auto">' + esc(d.dia) + '</label>';
+  });
+  h += '</div></section>' + lista('feriados', c.feriados, 'DATAS SEM EXPEDIENTE (FERIADOS, FOLGAS)') +
+    lista('extras', c.extras, 'DATAS EXTRAS COM EXPEDIENTE') +
+    '<button onclick="salvarCalendario(this)">Salvar calendário</button>';
+  tela(h);
+}
+
+async function salvarCalendario(btn) {
+  btn.disabled = true; carregando(true);
+  try { await run('apiCfgSalvarCalendario', E.cal); aviso('✔ Calendário salvo'); }
+  catch (e) { falha(e); }
+  btn.disabled = false; carregando(false);
+}
+
+/* ---------- AGENDA, CHECKLIST E DESEMPENHO ---------- */
+function verAgenda(aba) {
+  E.abaAg = aba || E.abaAg || 'check';
+  ({ check: agChecklist, cal: agCalendario, graf: agDesempenho })[E.abaAg]();
+}
+
+function abasAgenda() {
+  const b = function (k, t) { return '<button class="' + (E.abaAg === k ? 'on' : '') + '" onclick="verAgenda(\'' + k + '\')">' + t + '</button>'; };
+  return '<div class="abas">' + b('check', 'Checklist') + b('cal', 'Agenda') + b('graf', 'Desempenho') + '</div>';
+}
+
+const ST = {
+  OK: ['chip ok', 'Entregue'], ATRASO: ['chip aviso', 'Entregue com atraso'], PENDENTE: ['chip cinza', 'Pendente'],
+  ATRASADO: ['chip erro', 'Atrasado'], NA: ['chip cinza', 'Não se aplica']
+};
+
+function agChecklist(mes) {
+  return carregarTela('apiChecklistMes', [mes || (E.chk && E.chk.mes) || ''], function (c) { E.chk = c; desenharChecklist(); });
+}
+
+function desenharChecklist() {
+  const c = E.chk;
+  cabec('Checklist do mês', 'Documentos de ' + c.nomeMes + ' · prazo ' + c.prazo);
+  let h = abasAgenda() +
+    '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+    '<div class="campo"><label for="chkmes">Mês de referência</label><input type="month" id="chkmes" value="' + esc(c.mes) + '" onchange="agChecklist(this.value)"></div>' +
+    '<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="grande" style="font-size:32px">' + c.pct + '%</span>' +
+    '<span class="sub">' + c.feitos + ' de ' + c.total + ' entregues</span></div>' +
+    '<div style="height:10px;border-radius:5px;background:#E3E7EE"><div style="width:' + c.pct + '%;height:10px;border-radius:5px;background:var(--navy)"></div></div></section>';
+  h += '<div class="lista">';
+  c.itens.forEach(function (it, i) {
+    const st = ST[it.status];
+    const feito = it.status === 'OK' || it.status === 'ATRASO';
+    h += '<div class="item" style="align-items:flex-start' + (it.status === 'NA' ? ';opacity:.55' : '') + '">' +
+      '<input type="checkbox" aria-label="Marcar ' + esc(it.desc) + ' como entregue" ' + (feito ? 'checked' : '') + ' onchange="marcarDoc(' + i + ',this.checked)" style="width:26px;height:26px;min-height:auto;flex-shrink:0">' +
+      '<div class="info"><span class="t">' + esc(it.item) + ' · ' + esc(it.desc) + '</span>' +
+      '<span class="sub">' + (it.data ? 'Marcado em ' + esc(it.data) : (it.auto ? 'Automático · ' + esc(it.detalhe) : 'Obra: ' + esc(it.respObra || '—'))) + '</span>' +
+      (it.obs ? '<span class="sub">Obs.: ' + esc(it.obs) + '</span>' : '') +
+      (it.link ? '<a href="' + esc(it.link) + '" target="_blank" class="sub">Abrir arquivo</a>' : '') +
+      '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="' + st[0] + '">' + st[1] + '</span>' +
+      '<button class="sec peq" onclick="detalheDoc(' + i + ')">Link / obs.</button>' +
+      '<button class="sec peq" onclick="naDoc(' + i + ')">' + (it.status === 'NA' ? 'Aplica-se' : 'Não se aplica') + '</button></div></div></div>';
+  });
+  h += '</div><button class="sec" onclick="cfgTabela(\'docs\')">Editar, incluir ou remover itens do checklist</button>' +
+    '<span class="sub">Para tirar um item só deste mês, use "Não se aplica". Para tirar de vez, abra o item em Editar e marque ATIVO = NÃO.</span>';
+  tela(h);
+}
+
+async function salvarDoc(i, status, link, obs) {
+  const it = E.chk.itens[i];
+  carregando(true);
+  try { E.chk = await run('apiMarcarEntrega', E.chk.mes, it.item, status, link == null ? it.link : link, obs == null ? it.obs : obs); desenharChecklist(); }
+  catch (e) { falha(e); }
+  carregando(false);
+}
+function marcarDoc(i, marcado) {
+  const it = E.chk.itens[i];
+  if (!marcado && it.auto && !it.data) aviso('Este item está marcado automaticamente pelo app (' + it.detalhe + ').');
+  salvarDoc(i, marcado ? 'ENTREGUE' : '');
+}
+function naDoc(i) { salvarDoc(i, E.chk.itens[i].status === 'NA' ? '' : 'NÃO SE APLICA'); }
+function detalheDoc(i) {
+  const it = E.chk.itens[i];
+  const link = prompt('Link do arquivo no Drive (opcional):', it.link || '');
+  if (link === null) return;
+  const obs = prompt('Observação (opcional):', it.obs || '');
+  if (obs === null) return;
+  const st = it.status === 'OK' || it.status === 'ATRASO' ? 'ENTREGUE' : (it.status === 'NA' ? 'NÃO SE APLICA' : 'ENTREGUE');
+  salvarDoc(i, st, link, obs);
+}
+
+const COR_EV = { prazo: '#8E1B1B', ok: '#145C32', doc: '#1F3864', venc: '#D9822B', feriado: '#8892A3', extra: '#5B5FC7', ativ: '#0E7C86' };
+
+function agCalendario(mes) {
+  return carregarTela('apiAgenda', [mes || (E.ag && E.ag.mes) || ''], function (a) {
+    const mesmo = E.ag && E.ag.mes === a.mes;
+    E.ag = a;
+    if (!mesmo || !E.agDia) E.agDia = a.hoje || 0;
+    desenharAgenda();
+  });
+}
+
+function desenharAgenda() {
+  const a = E.ag;
+  cabec('Agenda', a.titulo);
+  let h = abasAgenda() + '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+    '<div style="display:flex;justify-content:space-between;align-items:center">' +
+    '<button class="sec peq" aria-label="Mês anterior" onclick="agCalendario(\'' + a.anterior + '\')">‹</button>' +
+    '<b style="font-size:17px;text-transform:capitalize">' + esc(a.titulo) + '</b>' +
+    '<button class="sec peq" aria-label="Próximo mês" onclick="agCalendario(\'' + a.proximo + '\')">›</button></div><div class="cal">';
+  ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(function (d) { h += '<div class="sem">' + d + '</div>'; });
+  for (let k = 0; k < a.primeiroDia; k++) h += '<div></div>';
+  for (let d = 1; d <= a.totalDias; d++) {
+    const evs = a.dias[d] || [];
+    const tipos = []; evs.forEach(function (e) { if (tipos.indexOf(e.tipo) < 0) tipos.push(e.tipo); });
+    h += '<button class="' + (d === a.hoje ? 'hoje ' : '') + (d === E.agDia ? 'sel' : '') + '" onclick="E.agDia=' + d + ';desenharAgenda()">' + d +
+      '<span class="pontos">' + tipos.slice(0, 3).map(function (t) { return '<i style="background:' + COR_EV[t] + '"></i>'; }).join('') + '</span></button>';
+  }
+  h += '</div><div style="display:flex;gap:12px;flex-wrap:wrap" class="sub">' +
+    [['ativ', 'Minhas atividades'], ['prazo', 'Prazo com pendência'], ['venc', 'Vencimento ASO/NR'], ['doc', 'Documento'], ['feriado', 'Sem expediente']].map(function (l) {
+      return '<span style="display:flex;align-items:center;gap:5px"><i style="width:8px;height:8px;border-radius:4px;display:block;background:' + COR_EV[l[0]] + '"></i>' + l[1] + '</span>';
+    }).join('') + '</div></section>';
+
+  const sel = E.agDia;
+  h += '<h2>' + (sel ? 'Dia ' + sel : 'Escolha um dia') + '</h2><div class="lista">';
+  const evs = sel ? (a.dias[sel] || []) : [];
+  if (sel && !evs.length) h += '<div class="vazio">Nada marcado neste dia.</div>';
+  evs.forEach(function (e, k) {
+    if (e.tipo === 'ativ') {
+      h += '<div class="item" style="align-items:flex-start' + (e.feita ? ';opacity:.6' : '') + '">' +
+        '<input type="checkbox" aria-label="Concluída" ' + (e.feita ? 'checked' : '') + ' onchange="concluirAtiv(' + e.linha + ',this.checked)" style="width:24px;height:24px;min-height:auto;flex-shrink:0">' +
+        '<div class="info"><span class="t" style="font-weight:600' + (e.feita ? ';text-decoration:line-through' : '') + '">' + (e.hora ? esc(e.hora) + ' · ' : '') + esc(e.texto) + '</span>' +
+        (e.obs ? '<span class="sub">' + esc(e.obs) + '</span>' : '') + '</div>' +
+        '<button class="sec peq" aria-label="Excluir atividade" onclick="removerAtiv(' + e.linha + ')">Excluir</button></div>';
+      return;
+    }
+    h += '<div class="item"><i style="width:10px;height:10px;border-radius:5px;display:block;flex-shrink:0;background:' + COR_EV[e.tipo] + '"></i>' +
+      '<div class="info"><span class="t" style="font-weight:500">' + esc(e.texto) + '</span></div>' +
+      (e.tipo === 'prazo' || e.tipo === 'ok' ? '<button class="sec peq" onclick="E.chk=null;verAgenda(\'check\')">Ver</button>' : '') + '</div>';
+  });
+  h += '</div>';
+  const p2 = function (n) { return String(n).padStart(2, '0'); };
+  const dataSel = a.mes + '-' + p2(sel || 1);
+  h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">ADICIONAR ATIVIDADE</span>' +
+    '<div class="grade2"><div class="campo"><label for="agdata">Data</label><input type="date" id="agdata" value="' + esc(dataSel) + '"></div>' +
+    '<div class="campo"><label for="aghora">Hora (opcional)</label><input type="time" id="aghora"></div></div>' +
+    '<div class="campo"><label for="agtit">Atividade</label><input id="agtit" placeholder="Ex.: Treinamento NR-35, visita do cliente, inspeção de extintores"></div>' +
+    '<div class="campo"><label for="agobs">Observação (opcional)</label><input id="agobs"></div>' +
+    '<button onclick="salvarAtiv(this)">Adicionar na agenda</button></section>';
+  tela(h);
+}
+
+async function salvarAtiv(btn) {
+  btn.disabled = true; carregando(true);
+  try {
+    const d = $('agdata').value;
+    E.ag = await run('apiAgendaSalvar', d, $('aghora').value, $('agtit').value, $('agobs').value);
+    E.agDia = Number(d.split('-')[2]);
+    aviso('✔ Atividade adicionada');
+    desenharAgenda();
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+async function concluirAtiv(linha, feita) {
+  carregando(true);
+  try { E.ag = await run('apiAgendaConcluir', linha, feita, E.ag.mes); desenharAgenda(); } catch (e) { falha(e); }
+  carregando(false);
+}
+
+async function removerAtiv(linha) {
+  if (!confirm('Excluir esta atividade da agenda?')) return;
+  carregando(true);
+  try { E.ag = await run('apiAgendaRemover', linha, E.ag.mes); desenharAgenda(); aviso('✔ Atividade excluída'); } catch (e) { falha(e); }
+  carregando(false);
+}
+
+function agDesempenho() {
+  return carregarTela('apiDesempenho', [], function (d) {
+    cabec('Desempenho', '% dos documentos entregues por mês');
+    let h = abasAgenda() + '<section class="card" style="display:flex;flex-direction:column;gap:8px"><span class="rotulo">% ENTREGUE POR MÊS</span><div class="barras">';
+    d.forEach(function (m) {
+      const cor = m.emAndamento ? '#8FA6CC' : (m.pct >= 90 ? '#2E7D4F' : (m.pct >= 60 ? 'var(--navy)' : '#C0392B'));
+      h += '<div class="col"><div class="bar" style="height:' + Math.max(m.pct, 2) + '%;background:' + cor + '"><span>' + m.pct + '%</span></div>' +
+        '<span class="sub" style="text-transform:capitalize">' + esc(m.nome) + '</span></div>';
+    });
+    h += '</div><span class="sub">Verde: 90% ou mais · Azul: 60 a 89% · Vermelho: abaixo de 60% · Azul claro: mês em andamento</span></section>';
+    h += '<div class="lista">';
+    d.slice().reverse().forEach(function (m) {
+      h += '<div class="item"><div class="info"><span class="t" style="text-transform:capitalize">' + esc(m.nome) + (m.emAndamento ? ' (em andamento)' : '') + '</span>' +
+        '<span class="sub">' + m.feitos + ' de ' + m.total + ' documentos</span></div><b>' + m.pct + '%</b></div>';
+    });
+    tela(h + '</div>');
+  });
+}
+
+if (token()) verInicio(); else telaLogin();
+</script>
+</body>
+</html>
