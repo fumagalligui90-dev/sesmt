@@ -517,41 +517,70 @@ function escolherFotos(k) {
   inp.click();
 }
 
-function reduzir(file, max) {
-  return new Promise(function (res, rej) {
-    const img = new Image(), url = URL.createObjectURL(file);
-    img.onload = function () {
-      const s = Math.min(1, max / Math.max(img.width, img.height));
-      const c = document.createElement('canvas');
-      c.width = Math.round(img.width * s); c.height = Math.round(img.height * s);
-      c.getContext('2d').drawImage(img, 0, 0, c.width, c.height);
-      URL.revokeObjectURL(url);
-      res(c.toDataURL('image/jpeg', 0.85));
-    };
-    img.onerror = function () { rej(new Error('Não consegui ler a imagem ' + file.name)); };
-    img.src = url;
-  });
+/* Reduz a foto no próprio celular antes de enviar (bem mais leve e rápido) */
+async function reduzir(file, max, qualidade) {
+  max = Math.min(max || 1100, 1100); qualidade = qualidade || 0.75;
+  let fonte, w, h, url = null;
+  try {
+    fonte = await createImageBitmap(file, { imageOrientation: 'from-image' });
+    w = fonte.width; h = fonte.height;
+  } catch (e) {
+    fonte = await new Promise(function (res, rej) {
+      const img = new Image(); url = URL.createObjectURL(file);
+      img.onload = function () { res(img); };
+      img.onerror = function () { rej(new Error('Não consegui ler a imagem ' + file.name)); };
+      img.src = url;
+    });
+    w = fonte.naturalWidth || fonte.width; h = fonte.naturalHeight || fonte.height;
+  }
+  const desenhar = function (lado, q) {
+    const s = Math.min(1, lado / Math.max(w, h));
+    const c = document.createElement('canvas');
+    c.width = Math.round(w * s); c.height = Math.round(h * s);
+    c.getContext('2d').drawImage(fonte, 0, 0, c.width, c.height);
+    return c.toDataURL('image/jpeg', q);
+  };
+  const foto = desenhar(max, qualidade), mini = desenhar(320, 0.6);
+  if (fonte.close) fonte.close();
+  if (url) URL.revokeObjectURL(url);
+  return { foto: foto, mini: mini };
 }
+
+/* Divide uma lista em pacotes (ex.: 3 fotos por envio) */
+function emPacotes(lista, n) {
+  const out = [];
+  for (let i = 0; i < lista.length; i += n) out.push(lista.slice(i, i + n));
+  return out;
+}
+
 
 async function enviarFotos(files) {
   if (!files.length) return;
-  const v = E.veic.veiculos[E.vi];
+  const v = E.veic.veiculos[E.vi], mes = E.veic.mes, secao = E.secao;
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
+  const itens = files.map(function (f, i) { return { f: f, i: i }; });
+  let feitos = 0;
   carregando(true);
   try {
-    aviso('Enviando fotos: 0 de ' + files.length + '…', 60000);
-    await emParalelo(files, 3, async function (f, i) {
-      const dataUrl = await reduzir(f, 1600);
-      const nome = String(f.lastModified || Date.now()) + '_' + String(i).padStart(2, '0') + '.jpg';
-      await run('apiUploadFoto', E.veic.mes, v.placa, E.secao, nome, dataUrl);
+    aviso('Enviando fotos: 0 de ' + files.length + '…', 120000);
+    await emParalelo(emPacotes(itens, 3), 2, async function (pacote) {
+      const lote = [];
+      for (const it of pacote) {
+        const r = await reduzir(it.f);
+        lote.push({ nome: String(it.f.lastModified || Date.now()) + '_' + String(it.i).padStart(3, '0') + '.jpg', dataUrl: r.foto });
+      }
+      await run('apiUploadFotosLote', mes, v.placa, secao, lote);
+      feitos += lote.length;
+      aviso('Enviando fotos: ' + feitos + ' de ' + files.length + '…', 120000);
     });
+    v.fotos[secao] = (v.fotos[secao] || 0) + files.length;
     esquecer(['apiVeiculos', 'apiPainel']);
     aviso('✔ ' + files.length + ' foto(s) enviada(s)');
-    E.veic = await run('apiVeiculos', E.veic.mes);
     verVeiculo(E.vi);
   } catch (e) { falha(e); }
   carregando(false);
 }
+
 
 async function salvarLeitura(btn) {
   const v = E.veic.veiculos[E.vi];
@@ -886,19 +915,38 @@ function escolherFotosCasa() {
 async function enviarFotosCasa(files, leg) {
   if (!files.length) return;
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
+  const casa = E.casa, mes = E.aloj.mes, base = casa.fotos.length;
+  let feitos = 0;
   carregando(true);
   try {
-    for (let i = 0; i < files.length; i++) {
-      aviso('Enviando foto ' + (i + 1) + ' de ' + files.length + '…', 60000);
-      const dataUrl = await reduzir(files[i], 1100);
-      await run('apiAlojUploadFoto', E.aloj.mes, E.casa.casa.id, leg, dataUrl, i);
+    aviso('Enviando fotos: 0 de ' + files.length + '…', 120000);
+    // Pacotes em sequência para manter a ordem das fotos no relatório
+    const pacotes = emPacotes(files, 3);
+    let proximo = null;
+    const preparar = async function (pacote, ini) {
+      const lote = [], minis = [];
+      for (let k = 0; k < pacote.length; k++) {
+        const r = await reduzir(pacote[k]);
+        lote.push({ dataUrl: r.foto, ordem: base + ini + k }); minis.push(r.mini);
+      }
+      return { lote: lote, minis: minis };
+    };
+    proximo = preparar(pacotes[0], 0);
+    for (let p = 0; p < pacotes.length; p++) {
+      const atual = await proximo;
+      if (p + 1 < pacotes.length) proximo = preparar(pacotes[p + 1], (p + 1) * 3);   // já prepara o próximo enquanto envia
+      const r = await run('apiAlojUploadFotosLote', mes, casa.casa.id, leg, atual.lote);
+      r.forEach(function (f, k) { casa.fotos.push({ id: f.id, legenda: f.legenda, thumb: atual.minis[k] }); });
+      feitos += r.length;
+      aviso('Enviando fotos: ' + feitos + ' de ' + files.length + '…', 120000);
     }
+    esquecer(['apiAlojamentos', 'apiPainel']);
     aviso('✔ ' + files.length + ' foto(s) enviada(s) como ' + leg);
-    E.casa.fotos = await run('apiAlojFotos', E.aloj.mes, E.casa.casa.id, true);
-    desenharCasa();
+    if (E.casa === casa) { const y = window.scrollY; guardarRascunhoCasa(); desenharCasa(); window.scrollTo(0, y); }
   } catch (e) { falha(e); }
   carregando(false);
 }
+
 
 async function trocarLegenda(i) {
   const f = E.casa.fotos[i];
