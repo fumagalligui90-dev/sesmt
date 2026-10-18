@@ -506,7 +506,7 @@ function verVeiculo(i) {
     '<button onclick="salvarLeitura(this)">Salvar leitura</button></section>';
 
   if (v.gerado) h += '<button onclick="abrirDoc(' + regDoc(v.gerado.url, v.gerado.codigo + ' ' + v.tipo + ' ' + v.placa) + ')">Abrir relatório ' + esc(v.gerado.codigo) + '</button>';
-  else h += '<button onclick="gerarVeiculos(this)">Gerar relatório</button>';
+  else h += '<button onclick="gerarUmVeiculo(this)">Gerar relatório deste veículo</button>';
   tela(h);
 }
 
@@ -589,6 +589,21 @@ async function salvarLeitura(btn) {
     v.leitura = await run('apiSalvarLeitura', E.veic.mes, v.placa, $('leit').value);
     aviso('✔ Leitura salva');
     verVeiculo(E.vi);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* Gera só o relatório do veículo aberto */
+async function gerarUmVeiculo(btn) {
+  const i = E.vi, v = E.veic.veiculos[i], mes = E.veic.mes;
+  btn.disabled = true; carregando(true);
+  aviso('Gerando o relatório de ' + v.tipo + ' ' + v.placa + '…', 300000);
+  try {
+    const r = await run('apiGerarVeiculo', mes, v.placa);
+    if (r.gerado) v.gerado = r.gerado;
+    esquecer(['apiVeiculos', 'apiPainel', 'apiChecklistMes', 'apiAgenda', 'apiDesempenho']);
+    aviso(r.mensagem, 10000);
+    if (E.vi === i && E.veic.veiculos[i] === v) verVeiculo(i);
   } catch (e) { falha(e); btn.disabled = false; }
   carregando(false);
 }
