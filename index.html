@@ -140,10 +140,15 @@
 const API_URL = 'https://script.google.com/macros/s/AKfycby8sd77tSajJuINQpJMGJXFbopy0fUd6L1xZK9FRPwwXEOE6jXU-O3rdjjr67EwSDz3/exec';
 
 function token() { try { return localStorage.getItem('sesmt_token') || ''; } catch (e) { return ''; } }
-async function chamar(corpo) {
+async function chamar(corpo, tentativa) {
   const r = await fetch(API_URL, { method: 'POST', headers: { 'Content-Type': 'text/plain;charset=utf-8' }, body: JSON.stringify(corpo) });
-  if (!r.ok) throw new Error('Sem resposta do servidor (' + r.status + '). Verifique a internet.');
-  return r.json();
+  const txt = await r.text();
+  try { return JSON.parse(txt); }
+  catch (e) {
+    if (!tentativa) return chamar(corpo, 1);   // o Google às vezes devolve uma página de erro passageira
+    const resumo = txt.replace(/<[^>]+>/g, ' ').replace(/\s+/g, ' ').trim().slice(0, 140);
+    throw new Error('Resposta inesperada do servidor (código ' + r.status + '). ' + (resumo || 'Resposta vazia.'));
+  }
 }
 function run(fn) {
   const args = Array.prototype.slice.call(arguments, 1);
