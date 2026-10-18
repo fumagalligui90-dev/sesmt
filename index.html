@@ -173,6 +173,7 @@ async function entrar(btn) {
     localStorage.setItem('sesmt_token', r.token);
     document.querySelector('nav').classList.remove('escondido');
     ir('inicio');
+    setTimeout(preCarregar, 2500);
   } catch (e) { carregando(false); telaLogin(e.message); }
 }
 
@@ -212,6 +213,40 @@ async function carregarTela(fn, args, render) {
     if (tok === TOK && s !== cache) render(novo);
   } catch (e) { if (tok === TOK) falha(e); }
   if (tok === TOK) carregando(false);
+}
+
+/* Esquece telas guardadas que mudaram depois de uma gravação */
+function esquecer(prefixos) {
+  try { Object.keys(localStorage).forEach(function (k) { if (prefixos.some(function (p) { return k.indexOf('sesmt:' + p) === 0; })) localStorage.removeItem(k); }); } catch (e) { }
+}
+
+/* Busca por trás os dados das outras telas, para elas abrirem na hora */
+async function preCarregar() {
+  const lista = [['apiChecklistMes', ['']], ['apiAgenda', ['']], ['apiColaboradores', []], ['apiVeiculos', ['']],
+                 ['apiAlojamentos', ['']], ['apiFadigaOpcoes', []], ['apiDesempenho', []]];
+  for (let i = 0; i < lista.length; i++) {
+    if (!token()) return;
+    try {
+      const r = await run.apply(null, [lista[i][0]].concat(lista[i][1]));
+      localStorage.setItem('sesmt:' + lista[i][0] + ':' + JSON.stringify(lista[i][1]), JSON.stringify(r));
+    } catch (e) { }
+  }
+}
+
+/* Executa várias tarefas ao mesmo tempo (ex.: enviar 3 fotos juntas) */
+async function emParalelo(itens, n, fn) {
+  let prox = 0, feitos = 0;
+  async function trabalhador() {
+    while (prox < itens.length) {
+      const i = prox++;
+      await fn(itens[i], i);
+      feitos++;
+      aviso('Enviando fotos: ' + feitos + ' de ' + itens.length + '…', 60000);
+    }
+  }
+  const ws = [];
+  for (let k = 0; k < Math.min(n, itens.length); k++) ws.push(trabalhador());
+  await Promise.all(ws);
 }
 
 async function limparTudo() {
@@ -376,12 +411,13 @@ async function enviarFotos(files) {
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
   carregando(true);
   try {
-    for (let i = 0; i < files.length; i++) {
-      aviso('Enviando foto ' + (i + 1) + ' de ' + files.length + '…', 60000);
-      const dataUrl = await reduzir(files[i], 1600);
-      const nome = String(files[i].lastModified || Date.now()) + '_' + String(i).padStart(2, '0') + '.jpg';
+    aviso('Enviando fotos: 0 de ' + files.length + '…', 60000);
+    await emParalelo(files, 3, async function (f, i) {
+      const dataUrl = await reduzir(f, 1600);
+      const nome = String(f.lastModified || Date.now()) + '_' + String(i).padStart(2, '0') + '.jpg';
       await run('apiUploadFoto', E.veic.mes, v.placa, E.secao, nome, dataUrl);
-    }
+    });
+    esquecer(['apiVeiculos', 'apiPainel']);
     aviso('✔ ' + files.length + ' foto(s) enviada(s)');
     E.veic = await run('apiVeiculos', E.veic.mes);
     verVeiculo(E.vi);
@@ -450,13 +486,14 @@ function desenharEquipe(filtro) {
 async function mudarStatus(idx, status, btn) {
   const linha = E.colab[idx].linha, nome = E.colab[idx].nome;
   if (status === 'DESLIGADO' && !confirm('Tirar ' + nome + ' do DDS e da lista de ativos?')) return;
-  btn.disabled = true; carregando(true);
+  E.colab[idx].status = status;
+  const filtro = $('busca') ? $('busca').value : '';
+  desenharEquipe(filtro);
+  aviso('✔ ' + nome + (status === 'ATIVO' ? ' reativado' : ' desligado'));
   try {
     E.colab = await run('apiSetStatus', linha, nome, status);
-    desenharEquipe($('busca') ? $('busca').value : '');
-    aviso('✔ ' + nome + (status === 'ATIVO' ? ' reativado' : ' desligado'));
-  } catch (e) { falha(e); }
-  carregando(false);
+    esquecer(['apiColaboradores', 'apiPainel', 'apiFadigaOpcoes']);
+  } catch (e) { falha(e); verEquipe(); }
 }
 
 async function novoColab(btn) {
@@ -967,19 +1004,38 @@ function desenharChecklist() {
   tela(h);
 }
 
-async function salvarDoc(i, status, link, obs) {
-  const it = E.chk.itens[i];
-  carregando(true);
-  try { E.chk = await run('apiMarcarEntrega', E.chk.mes, it.item, status, link == null ? it.link : link, obs == null ? it.obs : obs); desenharChecklist(); }
-  catch (e) { falha(e); }
-  carregando(false);
+async function salvarDoc(i, status, link, obs, silencioso) {
+  const it = E.chk.itens[i], mes = E.chk.mes, tok = TOK;
+  if (!silencioso) carregando(true);
+  try {
+    const c = await run('apiMarcarEntrega', mes, it.item, status, link == null ? it.link : link, obs == null ? it.obs : obs);
+    esquecer(['apiChecklistMes', 'apiAgenda', 'apiDesempenho', 'apiPainel']);
+    if (tok === TOK && E.chk && E.chk.mes === mes) { E.chk = c; const y = window.scrollY; desenharChecklist(); window.scrollTo(0, y); }
+  } catch (e) { falha(e); if (tok === TOK) agChecklist(mes); }
+  if (!silencioso) carregando(false);
+}
+
+/* Muda a tela na hora; o servidor confirma por trás */
+function otimista(i, st) {
+  const c = E.chk, it = c.itens[i];
+  it.status = st;
+  const ap = c.itens.filter(function (x) { return x.status !== 'NA'; });
+  c.total = ap.length;
+  c.feitos = ap.filter(function (x) { return x.status === 'OK' || x.status === 'ATRASO'; }).length;
+  c.pct = c.total ? Math.round(c.feitos * 100 / c.total) : 0;
+  const y = window.scrollY; desenharChecklist(); window.scrollTo(0, y);
 }
 function marcarDoc(i, marcado) {
   const it = E.chk.itens[i];
   if (!marcado && it.auto && !it.data) aviso('Este item está marcado automaticamente pelo app (' + it.detalhe + ').');
-  salvarDoc(i, marcado ? 'ENTREGUE' : '');
+  otimista(i, marcado ? 'OK' : 'PENDENTE');
+  salvarDoc(i, marcado ? 'ENTREGUE' : '', null, null, true);
 }
-function naDoc(i) { salvarDoc(i, E.chk.itens[i].status === 'NA' ? '' : 'NÃO SE APLICA'); }
+function naDoc(i) {
+  const na = E.chk.itens[i].status === 'NA';
+  otimista(i, na ? 'PENDENTE' : 'NA');
+  salvarDoc(i, na ? '' : 'NÃO SE APLICA', null, null, true);
+}
 function detalheDoc(i) {
   const it = E.chk.itens[i];
   const link = prompt('Link do arquivo no Drive (opcional):', it.link || '');
@@ -1064,9 +1120,14 @@ async function salvarAtiv(btn) {
 }
 
 async function concluirAtiv(linha, feita) {
-  carregando(true);
-  try { E.ag = await run('apiAgendaConcluir', linha, feita, E.ag.mes); desenharAgenda(); } catch (e) { falha(e); }
-  carregando(false);
+  Object.keys(E.ag.dias).forEach(function (d) { E.ag.dias[d].forEach(function (ev) { if (ev.tipo === 'ativ' && ev.linha === linha) ev.feita = feita; }); });
+  const y = window.scrollY; desenharAgenda(); window.scrollTo(0, y);
+  const tok = TOK, mes = E.ag.mes;
+  try {
+    const a = await run('apiAgendaConcluir', linha, feita, mes);
+    esquecer(['apiAgenda']);
+    if (tok === TOK && E.ag.mes === mes) { E.ag = a; const y2 = window.scrollY; desenharAgenda(); window.scrollTo(0, y2); }
+  } catch (e) { falha(e); agCalendario(mes); }
 }
 
 async function removerAtiv(linha) {
@@ -1095,7 +1156,7 @@ function agDesempenho() {
   });
 }
 
-if (token()) verInicio(); else telaLogin();
+if (token()) { verInicio(); setTimeout(preCarregar, 2500); } else telaLogin();
 </script>
 </body>
 </html>
