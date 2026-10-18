@@ -84,6 +84,9 @@
   @keyframes g{to{transform:rotate(360deg)}}
   .vazio{padding:18px 16px;color:var(--suave)}
   svg{flex-shrink:0}
+  #folha{position:fixed;inset:0;background:rgba(24,32,46,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
+  #folha .caixa{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
+    display:flex;flex-direction:column;gap:10px;box-shadow:0 -6px 24px rgba(0,0,0,.2)}
   .abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:#E3E7EE;padding:4px;border-radius:12px}
   .abas button{background:transparent;border:none;color:var(--suave);min-height:40px;font-size:14px}
   .abas button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(24,32,46,.12)}
@@ -215,6 +218,70 @@ async function carregarTela(fn, args, render) {
   if (tok === TOK) carregando(false);
 }
 
+/* ---------- DOCUMENTOS: compartilhar, baixar, enviar por e-mail ---------- */
+const DOCS = [];
+const PDFS = {};
+function regDoc(url, nome) { DOCS.push({ url: url, nome: nome || 'documento' }); return DOCS.length - 1; }
+
+function fecharFolha() { const f = $('folha'); if (f) f.remove(); }
+
+async function abrirDoc(i) {
+  const d = DOCS[i];
+  fecharFolha();
+  const f = document.createElement('div');
+  f.id = 'folha';
+  f.onclick = function (e) { if (e.target === f) fecharFolha(); };
+  f.innerHTML = '<div class="caixa" role="dialog" aria-label="Documento">' +
+    '<b style="font-size:16px">' + esc(d.nome) + '</b>' +
+    '<span class="sub" id="fstatus">Preparando o PDF…</span>' +
+    '<button id="fcomp" disabled onclick="compartilharDoc(' + i + ')">Compartilhar (WhatsApp, e-mail…)</button>' +
+    '<button id="fbaixar" class="sec" disabled onclick="baixarDoc(' + i + ')">Baixar / Imprimir</button>' +
+    '<button class="sec" onclick="emailDoc(' + i + ', this)">Enviar por e-mail (cadastrados no ⚙)</button>' +
+    '<button class="sec" onclick="fecharFolha()">Fechar</button></div>';
+  document.body.appendChild(f);
+  try {
+    if (!PDFS[d.url]) {
+      const r = await run('apiPdfDocumento', d.url);
+      const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+      for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+      PDFS[d.url] = new File([bytes], r.nome, { type: 'application/pdf' });
+    }
+    if (!$('folha')) return;
+    $('fstatus').textContent = 'PDF pronto (' + Math.max(1, Math.round(PDFS[d.url].size / 1024)) + ' KB).';
+    $('fcomp').disabled = false; $('fbaixar').disabled = false;
+  } catch (e) {
+    if ($('fstatus')) $('fstatus').textContent = '⚠ ' + (e.message || e);
+  }
+}
+
+async function compartilharDoc(i) {
+  const file = PDFS[DOCS[i].url];
+  if (!file) return;
+  if (navigator.canShare && navigator.canShare({ files: [file] })) {
+    try { await navigator.share({ files: [file], title: file.name }); }
+    catch (e) { if (e.name !== 'AbortError') aviso('⚠ Não foi possível compartilhar: ' + e.message); }
+  } else {
+    aviso('Este navegador não compartilha arquivos. Use "Baixar" e envie pelo WhatsApp.', 7000);
+    baixarDoc(i);
+  }
+}
+
+function baixarDoc(i) {
+  const file = PDFS[DOCS[i].url];
+  if (!file) return;
+  const url = URL.createObjectURL(file), a = document.createElement('a');
+  a.href = url; a.download = file.name; document.body.appendChild(a); a.click(); a.remove();
+  setTimeout(function () { URL.revokeObjectURL(url); }, 60000);
+  aviso('✔ PDF salvo em Downloads. Abra para imprimir ou enviar.', 6000);
+}
+
+async function emailDoc(i, btn) {
+  btn.disabled = true;
+  try { aviso(await run('apiEnviarEmailDocumento', DOCS[i].url), 7000); }
+  catch (e) { falha(e); }
+  btn.disabled = false;
+}
+
 /* Esquece telas guardadas que mudaram depois de uma gravação */
 function esquecer(prefixos) {
   try { Object.keys(localStorage).forEach(function (k) { if (prefixos.some(function (p) { return k.indexOf('sesmt:' + p) === 0; })) localStorage.removeItem(k); }); } catch (e) { }
@@ -277,7 +344,7 @@ function verInicio() {
         '<span class="sub">' + (d.pronto ? 'Já gerado: ' + esc(d.ultimo ? d.ultimo.codigo : '') : 'Será o nº ' + esc(d.proximoNum)) + '</span></div>' +
         (d.pronto ? '<span class="chip ok">Pronto</span>' : '<span class="chip aviso">Pendente</span>') + '</div>' +
         '<div class="grade2">' +
-        (d.pronto && d.ultimo ? '<a class="botao" href="' + esc(d.ultimo.url) + '" target="_blank">Abrir DDS</a>'
+        (d.pronto && d.ultimo ? '<button onclick="abrirDoc(' + regDoc(d.ultimo.url, d.ultimo.codigo) + ')">Abrir DDS</button>'
                               : '<button onclick="gerarDDS(this)">Gerar DDS</button>') +
         '<button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
     }
@@ -325,7 +392,7 @@ function verDDS() {
     if (!l.length) h += '<div class="vazio">Nenhum DDS gerado ainda.</div>';
     l.forEach(function (d) {
       h += '<div class="item"><div class="info"><span class="t">' + esc(d.codigo) + '</span><span class="sub">' + esc(d.data) + ' · ' + esc(d.pessoas) + ' colaboradores</span></div>' +
-        '<a class="botao sec peq" style="min-height:38px;font-size:13px" href="' + esc(d.url) + '" target="_blank">Abrir</a></div>';
+        '<button class="sec peq" onclick="abrirDoc(' + regDoc(d.url, d.codigo) + ')">Abrir</button></div>';
     });
     tela(h + '</div>');
   });
@@ -377,7 +444,7 @@ function verVeiculo(i) {
     '<input id="leit" inputmode="numeric" placeholder="Só números" value="' + (l ? esc(l.atual) : '') + '"></div>' +
     '<button onclick="salvarLeitura(this)">Salvar leitura</button></section>';
 
-  if (v.gerado) h += '<a class="botao" href="' + esc(v.gerado.url) + '" target="_blank">Abrir relatório ' + esc(v.gerado.codigo) + '</a>';
+  if (v.gerado) h += '<button onclick="abrirDoc(' + regDoc(v.gerado.url, v.gerado.codigo + ' ' + v.tipo + ' ' + v.placa) + ')">Abrir relatório ' + esc(v.gerado.codigo) + '</button>';
   else h += '<button onclick="gerarVeiculos(this)">Gerar relatório</button>';
   tela(h);
 }
@@ -531,7 +598,7 @@ function verFadiga() {
     f.historico.forEach(function (r) {
       h += '<div class="item"><div class="info"><span class="t">' + esc(r.data) + ' · ' + esc(r.qtd) + ' ficha(s)</span>' +
         '<span class="sub">' + esc(r.motoristas) + '</span><span class="sub">' + esc(r.codigos) + '</span></div>' +
-        '<a class="botao sec" style="min-height:38px;font-size:13px" href="' + esc(r.url) + '" target="_blank">Abrir</a></div>';
+        '<button class="sec peq" onclick="abrirDoc(' + regDoc(r.url, 'Controle de fadiga ' + r.data) + ')">Abrir</button></div>';
     });
     tela(h + '</div>');
   });
@@ -661,8 +728,7 @@ function desenharCasa() {
 
   // Relatório
   if (d.gerado) {
-    h += '<div class="grade2"><a class="botao" href="' + esc(d.gerado.url) + '" target="_blank">Abrir planilha</a>' +
-      (d.gerado.pdf ? '<a class="botao sec" href="' + esc(d.gerado.pdf) + '" target="_blank">Abrir PDF</a>' : '') + '</div>' +
+    h += '<button onclick="abrirDoc(' + regDoc(d.gerado.pdf || d.gerado.url, c.identificacao + ' ' + (d.gerado.numero || '')) + ')">Abrir relatório (PDF)</button>' +
       '<span class="sub">Para refazer, apague o relatório no Drive e gere de novo (o número do mês é mantido).</span>';
   } else {
     h += '<button onclick="gerarCasa(this)">Gerar relatório desta casa</button>';
