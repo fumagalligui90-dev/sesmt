@@ -7,6 +7,16 @@
 <meta name="robots" content="noindex, nofollow">
 <title>SESMT Grantel</title>
 <link rel="manifest" href="manifest.json">
+<script>
+  /* Aplica o tema antes de desenhar a tela (evita piscar) */
+  (function () {
+    try {
+      var t = localStorage.getItem('sesmt_tema') || 'auto';
+      var esc = t === 'escuro' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+      document.documentElement.setAttribute('data-tema', esc ? 'escuro' : 'claro');
+    } catch (e) { }
+  })();
+</script>
 <link rel="icon" href="icone.svg" type="image/svg+xml">
 <link rel="apple-touch-icon" href="icone.svg">
 <link rel="preconnect" href="https://fonts.googleapis.com">
@@ -19,17 +29,30 @@
      --ok / --aviso / --erro: cores das etiquetas de situação
      ============================================================ */
   :root{
-    --navy:#1F3864; --navy-escuro:#142546; --alerta:#F5A623;
-    --fundo:#EEF1F5; --card:#FFFFFF; --texto:#18202E; --suave:#4A5568; --linha:#E1E6EE;
+    --navy:#1F3864; --navy-escuro:#142546; --alerta:#F5A623; --cab:#1F3864; --link:#1F3864;
+    --fundo:#EEF1F5; --fundo2:var(--fundo2); --card:#FFFFFF; --campo:#FFFFFF; --texto:#18202E; --suave:#4A5568;
+    --linha:#E1E6EE; --borda:#B7C0CE;
     --ok-bg:#DCEFE3; --ok:#145C32; --aviso-bg:#FFF1E3; --aviso:#8A3D00;
     --erro-bg:#FBE2E2; --erro:#8E1B1B; --cinza-bg:#E3E7EE; --cinza:#39424F;
+    --toast-bg:#18202E; --toast-fg:#FFFFFF; --veu:rgba(238,241,245,.7);
   }
+  /* TEMA ESCURO */
+  html[data-tema="escuro"]{
+    color-scheme:dark;
+    --navy:#3D6FD6; --cab:#14213D; --link:#8AB4F8;
+    --fundo:#0F1520; --fundo2:#1F2836; --card:#1A2230; --campo:#141B27; --texto:#E6EAF0; --suave:#A3ADBD;
+    --linha:#2A3446; --borda:#3A465B;
+    --ok-bg:#183A28; --ok:#7FD8A3; --aviso-bg:#3D2A12; --aviso:#F3B26B;
+    --erro-bg:#3D1717; --erro:#F28B82; --cinza-bg:#2A3240; --cinza:#C3CAD5;
+    --toast-bg:#E6EAF0; --toast-fg:#0F1520; --veu:rgba(15,21,32,.7);
+  }
+  textarea{background:var(--campo);color:var(--texto)}
   *{box-sizing:border-box}
   html,body{margin:0;background:var(--fundo);color:var(--texto);
     font-family:'IBM Plex Sans',system-ui,-apple-system,'Segoe UI',sans-serif;font-size:15px}
   body{padding-bottom:calc(80px + env(safe-area-inset-bottom,0px))}
-  a{color:var(--navy);font-weight:600}
-  header{background:var(--navy);color:#fff;padding:calc(20px + env(safe-area-inset-top,0px)) 70px 24px 20px}
+  a{color:var(--link);font-weight:600}
+  header{background:var(--cab);color:#fff;padding:calc(20px + env(safe-area-inset-top,0px)) 70px 24px 20px}
   header .marca{font-family:'IBM Plex Sans Condensed',sans-serif;font-weight:700;font-size:14px;letter-spacing:.08em}
   header h1{margin:10px 0 2px;font-size:24px;font-weight:600}
   header p{margin:0;font-size:14px;color:#D3DCEB}
@@ -42,14 +65,14 @@
   .item .t{font-weight:600}
   .sub{font-size:13px;color:var(--suave)}
   .rotulo{font-size:12px;font-weight:600;color:var(--suave);letter-spacing:.06em}
-  .grande{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:28px;font-weight:700;color:var(--navy)}
+  .grande{font-family:'IBM Plex Sans Condensed',sans-serif;font-size:28px;font-weight:700;color:var(--link)}
   h2{margin:4px 4px 0;font-size:17px;font-weight:600}
   .linha{display:flex;justify-content:space-between;align-items:flex-start;gap:10px}
   .grade2{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}
   button,.botao{font-family:inherit;font-size:15px;font-weight:600;min-height:46px;border-radius:10px;
     border:1.5px solid var(--navy);background:var(--navy);color:#fff;padding:0 14px;cursor:pointer;
     display:inline-flex;align-items:center;justify-content:center;gap:8px;text-decoration:none}
-  button.sec,.botao.sec{background:#fff;color:var(--navy)}
+  button.sec,.botao.sec{background:var(--card);color:var(--link);border-color:var(--link)}
   button.peq{min-height:38px;font-size:13px;padding:0 12px}
   button:disabled{opacity:.55;cursor:wait}
   .chip{font-size:12px;font-weight:600;padding:5px 10px;border-radius:20px;white-space:nowrap}
@@ -59,42 +82,42 @@
     display:flex;flex-direction:column;align-items:center;justify-content:center;flex-shrink:0}
   .dias b{font-size:17px;line-height:1} .dias span{font-size:10px;font-weight:600}
   .dias.vencido{background:var(--erro-bg);color:var(--erro)}
-  input,select{font-family:inherit;font-size:16px;min-height:46px;border-radius:10px;border:1.5px solid #B7C0CE;
-    padding:0 12px;width:100%;color:var(--texto);background:#fff}
+  input,select{font-family:inherit;font-size:16px;min-height:46px;border-radius:10px;border:1.5px solid var(--borda);
+    padding:0 12px;width:100%;color:var(--texto);background:var(--campo)}
   label{font-size:14px;font-weight:600;display:block;margin-bottom:6px}
   .campo{display:flex;flex-direction:column;gap:6px}
   .acao{background:var(--card);border-radius:14px;padding:16px;display:flex;flex-direction:column;gap:8px;
     text-decoration:none;color:var(--texto);box-shadow:0 2px 8px rgba(24,32,46,.08);border:none;text-align:left;min-height:auto;font-weight:400}
   .acao b{font-size:15px}
-  nav{position:fixed;left:0;right:0;bottom:0;background:#fff;border-top:1px solid #DDE2EA;
+  nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--linha);
     display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
-  nav button{background:#fff;border:none;color:#5A6475;border-radius:0;flex-direction:column;gap:3px;
+  nav button{background:var(--card);border:none;color:var(--suave);border-radius:0;flex-direction:column;gap:3px;
     font-size:12px;font-weight:500;min-height:64px}
-  nav button.ativo{color:var(--navy);font-weight:700}
+  nav button.ativo{color:var(--link);font-weight:700}
   .secao{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--linha);border-radius:12px}
   .secao .n{width:52px;height:52px;border-radius:10px;background:var(--cinza-bg);display:flex;align-items:center;
     justify-content:center;font-weight:700;font-size:18px;color:var(--cinza);flex-shrink:0}
   .secao .n.tem{background:var(--ok-bg);color:var(--ok)}
   .escondido{display:none!important}
   #toast{position:fixed;left:14px;right:14px;bottom:calc(84px + env(safe-area-inset-bottom,0px));max-width:560px;margin:0 auto;
-    background:#18202E;color:#fff;border-radius:12px;padding:14px 16px;white-space:pre-line;z-index:10;
+    background:var(--toast-bg);color:var(--toast-fg);border-radius:12px;padding:14px 16px;white-space:pre-line;z-index:10;
     box-shadow:0 6px 18px rgba(0,0,0,.25)}
-  #carregando{position:fixed;inset:0;background:rgba(238,241,245,.7);display:flex;align-items:center;justify-content:center;z-index:9}
-  .giro{width:42px;height:42px;border:4px solid #C9D2E0;border-top-color:var(--navy);border-radius:50%;animation:g 1s linear infinite}
+  #carregando{position:fixed;inset:0;background:var(--veu);display:flex;align-items:center;justify-content:center;z-index:9}
+  .giro{width:42px;height:42px;border:4px solid var(--linha);border-top-color:var(--navy);border-radius:50%;animation:g 1s linear infinite}
   @keyframes g{to{transform:rotate(360deg)}}
   .vazio{padding:18px 16px;color:var(--suave)}
   svg{flex-shrink:0}
   #folha{position:fixed;inset:0;background:rgba(24,32,46,.45);z-index:20;display:flex;align-items:flex-end;justify-content:center}
-  #folha .caixa{background:#fff;width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
+  #folha .caixa{background:var(--card);width:100%;max-width:560px;border-radius:18px 18px 0 0;padding:18px 16px calc(18px + env(safe-area-inset-bottom,0px));
     display:flex;flex-direction:column;gap:10px;box-shadow:0 -6px 24px rgba(0,0,0,.2)}
-  .abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:#E3E7EE;padding:4px;border-radius:12px}
+  .abas{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:6px;background:var(--cinza-bg);padding:4px;border-radius:12px}
   .abas button{background:transparent;border:none;color:var(--suave);min-height:40px;font-size:14px}
-  .abas button.on{background:#fff;color:var(--navy);box-shadow:0 1px 3px rgba(24,32,46,.12)}
+  .abas button.on{background:var(--card);color:var(--link);box-shadow:0 1px 3px rgba(24,32,46,.12)}
   .cal{display:grid;grid-template-columns:repeat(7,minmax(0,1fr));gap:4px}
   .cal .sem{font-size:11px;font-weight:700;color:var(--suave);text-align:center;padding:4px 0}
-  .cal button{min-height:48px;padding:4px 0;border-radius:10px;background:#fff;border:1px solid var(--linha);color:var(--texto);
+  .cal button{min-height:48px;padding:4px 0;border-radius:10px;background:var(--card);border:1px solid var(--linha);color:var(--texto);
     flex-direction:column;gap:3px;font-size:14px;font-weight:600}
-  .cal button.hoje{border:2px solid var(--navy)}
+  .cal button.hoje{border:2px solid var(--link)}
   .cal button.sel{background:var(--navy);color:#fff}
   .pontos{display:flex;gap:3px;height:6px}
   .pontos i{width:6px;height:6px;border-radius:3px;display:block}
@@ -221,6 +244,39 @@ async function carregarTela(fn, args, render) {
     if (tok === TOK && s !== cache) render(novo);
   } catch (e) { if (tok === TOK) falha(e); }
   if (tok === TOK) carregando(false);
+}
+
+/* ---------- TEMA CLARO / ESCURO ---------- */
+function temaEscolhido() { try { return localStorage.getItem('sesmt_tema') || 'auto'; } catch (e) { return 'auto'; } }
+function nomeTema(t) { return { auto: 'Automático (segue o celular)', claro: 'Claro', escuro: 'Escuro' }[t || temaEscolhido()]; }
+function aplicarTema() {
+  const t = temaEscolhido();
+  const esc = t === 'escuro' || (t === 'auto' && window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches);
+  document.documentElement.setAttribute('data-tema', esc ? 'escuro' : 'claro');
+  const m = document.querySelector('meta[name="theme-color"]');
+  if (m) m.setAttribute('content', esc ? '#14213D' : '#1F3864');
+}
+if (window.matchMedia) {
+  const mq = matchMedia('(prefers-color-scheme: dark)');
+  if (mq.addEventListener) mq.addEventListener('change', function () { if (temaEscolhido() === 'auto') aplicarTema(); });
+}
+function escolherTema() {
+  fecharFolha();
+  const f = document.createElement('div');
+  f.id = 'folha';
+  f.onclick = function (e) { if (e.target === f) fecharFolha(); };
+  const atual = temaEscolhido();
+  f.innerHTML = '<div class="caixa" role="dialog" aria-label="Tema do app"><b style="font-size:16px">Tema do app</b>' +
+    ['auto', 'claro', 'escuro'].map(function (t) {
+      return '<button class="' + (t === atual ? '' : 'sec') + '" onclick="definirTema(\'' + t + '\')">' + (t === atual ? '✓ ' : '') + nomeTema(t) + '</button>';
+    }).join('') + '<button class="sec" onclick="fecharFolha()">Fechar</button></div>';
+  document.body.appendChild(f);
+}
+function definirTema(t) {
+  try { localStorage.setItem('sesmt_tema', t); } catch (e) { }
+  aplicarTema(); fecharFolha();
+  if (document.getElementById('h-titulo').textContent === 'Configurações') verConfig();
+  aviso('✔ Tema: ' + nomeTema(t));
 }
 
 /* ---------- DOCUMENTOS: compartilhar, baixar, enviar por e-mail ---------- */
@@ -418,7 +474,7 @@ function verVeiculos(mes) {
       const chip = v.gerado ? '<span class="chip ok">Gerado</span>'
         : (total && v.leitura ? '<span class="chip aviso">Pronto p/ gerar</span>'
         : (total ? '<span class="chip aviso">Falta leitura</span>' : '<span class="chip cinza">Pendente</span>'));
-      h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px" onclick="verVeiculo(' + i + ')">' +
+      h += '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px" onclick="verVeiculo(' + i + ')">' +
         '<div class="info"><span class="t">' + esc(v.tipo) + '</span><span class="sub">' + esc(v.placa) + ' · ' + total + ' fotos</span></div>' + chip + '</button>';
     });
     tela(h + '</div>');
@@ -592,7 +648,7 @@ function verFadiga() {
 
     h += '<h2>Motoristas</h2><div class="lista">';
     f.pessoas.forEach(function (p, i) {
-      if (i > 0 && f.pessoas[i - 1].sim && !p.sim) h += '<div class="item sub" style="font-weight:600;background:#F4F6F9">Outros colaboradores ativos</div>';
+      if (i > 0 && f.pessoas[i - 1].sim && !p.sim) h += '<div class="item sub" style="font-weight:600;background:var(--fundo2)">Outros colaboradores ativos</div>';
       h += '<label class="item" style="cursor:pointer"><input type="checkbox" class="fchk" value="' + i + '" style="width:24px;height:24px;min-height:auto;flex-shrink:0">' +
         '<div class="info"><span class="t">' + esc(p.nome) + '</span><span class="sub">' + esc(p.funcao) + '</span></div></label>';
     });
@@ -641,7 +697,7 @@ function verAloj(mes) {
       else if (c.nFotos && c.inspecao && c.inspecao.data) chip = '<span class="chip aviso">Pronto p/ gerar</span>';
       else if (!c.inspecao || !c.inspecao.data) chip = '<span class="chip cinza">Falta inspeção</span>';
       else chip = '<span class="chip cinza">Faltam fotos</span>';
-      h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (c.status !== 'ATIVA' ? ';opacity:.6' : '') + '" onclick="verCasa(\'' + esc(c.id) + '\')">' +
+      h += '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (c.status !== 'ATIVA' ? ';opacity:.6' : '') + '" onclick="verCasa(\'' + esc(c.id) + '\')">' +
         '<div class="info"><span class="t">' + esc(c.identificacao) + '</span><span class="sub">' + c.nFotos + ' fotos' +
         (c.inspecao && c.inspecao.nNc ? ' · ' + c.inspecao.nNc + ' não conforme(s)' : '') + '</span></div>' + chip + '</button>';
     });
@@ -698,8 +754,8 @@ function desenharCasa() {
   h += '<div class="grade2">';
   d.fotos.forEach(function (f, i) {
     h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
-      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:#E3E7EE">'
-               : '<div style="aspect-ratio:4/3;background:#E3E7EE"></div>') +
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg)">'
+               : '<div style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
       '<div style="padding:8px;display:flex;flex-direction:column;gap:6px"><span class="sub"><b>Foto ' + String(i + 1).padStart(2, '0') + '</b> · ' + esc(f.legenda || 'sem legenda') + '</span>' +
       '<div style="display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="trocarLegenda(' + i + ')">Legenda</button>' +
       '<button class="sec peq" style="flex:1" onclick="excluirFotoCasa(' + i + ')">Excluir</button></div></div></div>';
@@ -713,7 +769,7 @@ function desenharCasa() {
     '<span class="sub">Todos os itens vêm como Conforme. Toque nos que estiverem Não Conformes.</span><div class="lista" style="box-shadow:none;border:1px solid var(--linha)">';
   let grupo = '';
   d.checklist.forEach(function (it) {
-    if (it.grupo !== grupo) { grupo = it.grupo; h += '<div class="item sub" style="font-weight:700;background:#F4F6F9">' + esc(grupo) + '</div>'; }
+    if (it.grupo !== grupo) { grupo = it.grupo; h += '<div class="item sub" style="font-weight:700;background:var(--fundo2)">' + esc(grupo) + '</div>'; }
     const nc = it.i in E.nc;
     h += '<div class="item" style="flex-direction:column;align-items:stretch;gap:8px"><div style="display:flex;gap:10px;align-items:center">' +
       '<span style="flex:1;font-size:14px">' + esc(it.texto) + '</span>' +
@@ -721,8 +777,8 @@ function desenharCasa() {
       (nc ? '<input placeholder="O que está errado? (vai para Pontos de Atenção)" value="' + esc(E.nc[it.i]) + '" oninput="E.nc[' + it.i + ']=this.value">' : '') + '</div>';
   });
   h += '</div>' +
-    '<div class="campo"><label for="apontos">Pontos de atenção (um por linha)</label><textarea id="apontos" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(ins.pontos || '') + '</textarea></div>' +
-    '<div class="campo"><label for="aobs">Observações do mês (um por linha)</label><textarea id="aobs" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(ins.obs || '') + '</textarea></div>' +
+    '<div class="campo"><label for="apontos">Pontos de atenção (um por linha)</label><textarea id="apontos" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid var(--borda);padding:10px">' + esc(ins.pontos || '') + '</textarea></div>' +
+    '<div class="campo"><label for="aobs">Observações do mês (um por linha)</label><textarea id="aobs" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid var(--borda);padding:10px">' + esc(ins.obs || '') + '</textarea></div>' +
     '<button onclick="salvarInspecaoCasa(this)">Salvar inspeção</button></section>';
 
   // Dados da casa
@@ -747,7 +803,7 @@ function camposCasa(c) {
     return '<div class="campo"><label for="' + id + '">' + rot + '</label><input id="' + id + '" ' + (tipo === 'n' ? 'inputmode="numeric"' : '') + ' value="' + esc(val == null ? '' : val) + '"></div>';
   };
   const area = function (id, rot, val) {
-    return '<div class="campo"><label for="' + id + '">' + rot + '</label><textarea id="' + id + '" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid #B7C0CE;padding:10px">' + esc(val || '') + '</textarea></div>';
+    return '<div class="campo"><label for="' + id + '">' + rot + '</label><textarea id="' + id + '" rows="3" style="font-family:inherit;font-size:15px;border-radius:10px;border:1.5px solid var(--borda);padding:10px">' + esc(val || '') + '</textarea></div>';
   };
   return campo('cident', 'Identificação (endereço)', c.identificacao) +
     '<div class="grade2">' + campo('ccom', 'Nº de cômodos', c.comodos, 'n') + campo('cqua', 'Nº de quartos', c.quartos, 'n') +
@@ -880,12 +936,13 @@ function verConfig() {
     ['cfgTabela(\'veiculos\')', 'Veículos', 'Frota, placas, operadores, km ou horímetro'],
     ['cfgCalendario()', 'Calendário da obra', 'Dias de trabalho, feriados e dias extras'],
     ['cfgTabela(\'docs\')', 'Itens do checklist', 'Documentos do checklist mensal e da agenda'],
+    ['escolherTema()', 'Tema (claro / escuro)', 'Atual: ' + nomeTema()],
     ['limparTudo()', 'Atualizar dados agora', 'Use se você mudou algo direto na planilha'],
     ['sair()', 'Sair do app', 'Desconecta este aparelho (vai pedir a senha de novo)'],
     ['ir(\'aloj\')', 'Alojamentos', 'Nome e dados de cada casa (toque na casa → Dados da casa)']
   ];
   tela('<div class="lista">' + op.map(function (o) {
-    return '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="' + o[0] + '">' +
+    return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="' + o[0] + '">' +
       '<div class="info"><span class="t">' + o[1] + '</span><span class="sub">' + o[2] + '</span></div><span aria-hidden="true">›</span></button>';
   }).join('') + '</div>');
 }
@@ -931,7 +988,7 @@ function desenharTabela(filtro) {
   t.linhas.forEach(function (l, i) {
     const txt = (l.dados[t.campoChave] + ' ' + t.resumo.map(function (r) { return l.dados[r] || ''; }).join(' ')).toUpperCase();
     if (f && txt.indexOf(f) < 0) return;
-    h += '<button class="item" style="width:100%;background:#fff;border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (l.ativo ? '' : ';opacity:.55') + '" onclick="formLinha(' + i + ')">' +
+    h += '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (l.ativo ? '' : ';opacity:.55') + '" onclick="formLinha(' + i + ')">' +
       '<div class="info"><span class="t">' + esc(l.dados[t.campoChave]) + '</span><span class="sub">' + esc(t.resumo.map(function (r) { return l.dados[r] || ''; }).filter(String).join(' · ')) + '</span></div>' +
       (l.ativo ? '<span class="chip ok">' + esc(t.ativo) + '</span>' : '<span class="chip cinza">' + esc(t.inativo) + '</span>') + '</button>';
   });
@@ -1055,7 +1112,7 @@ function desenharChecklist() {
     '<div class="campo"><label for="chkmes">Mês de referência</label><input type="month" id="chkmes" value="' + esc(c.mes) + '" onchange="agChecklist(this.value)"></div>' +
     '<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="grande" style="font-size:32px">' + c.pct + '%</span>' +
     '<span class="sub">' + c.feitos + ' de ' + c.total + ' entregues</span></div>' +
-    '<div style="height:10px;border-radius:5px;background:#E3E7EE"><div style="width:' + c.pct + '%;height:10px;border-radius:5px;background:var(--navy)"></div></div></section>';
+    '<div style="height:10px;border-radius:5px;background:var(--cinza-bg)"><div style="width:' + c.pct + '%;height:10px;border-radius:5px;background:var(--navy)"></div></div></section>';
   h += '<div class="lista">';
   c.itens.forEach(function (it, i) {
     const st = ST[it.status];
@@ -1227,6 +1284,7 @@ function agDesempenho() {
   });
 }
 
+aplicarTema();
 if (token()) { verInicio(); setTimeout(preCarregar, 2500); } else telaLogin();
 </script>
 </body>
