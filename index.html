@@ -936,15 +936,17 @@ function verConfig() {
     ['cfgTabela(\'veiculos\')', 'Veículos', 'Frota, placas, operadores, km ou horímetro'],
     ['cfgCalendario()', 'Calendário da obra', 'Dias de trabalho, feriados e dias extras'],
     ['cfgTabela(\'docs\')', 'Itens do checklist', 'Documentos do checklist mensal e da agenda'],
+    ['ir(\'aloj\')', 'Alojamentos', 'Nome e dados de cada casa (toque na casa → Dados da casa)'],
     ['escolherTema()', 'Tema (claro / escuro)', 'Atual: ' + nomeTema()],
-    ['limparTudo()', 'Atualizar dados agora', 'Use se você mudou algo direto na planilha'],
-    ['sair()', 'Sair do app', 'Desconecta este aparelho (vai pedir a senha de novo)'],
-    ['ir(\'aloj\')', 'Alojamentos', 'Nome e dados de cada casa (toque na casa → Dados da casa)']
+    ['limparTudo()', 'Atualizar dados agora', 'Use se você mudou algo direto na planilha']
   ];
   tela('<div class="lista">' + op.map(function (o) {
     return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="' + o[0] + '">' +
       '<div class="info"><span class="t">' + o[1] + '</span><span class="sub">' + o[2] + '</span></div><span aria-hidden="true">›</span></button>';
-  }).join('') + '</div>');
+  }).join('') + '</div>' +
+    '<div class="lista"><button class="item" style="width:100%;background:var(--card);border:none;border-radius:0;color:var(--erro);text-align:left;min-height:68px" onclick="sair()">' +
+    '<div class="info"><span class="t" style="color:var(--erro)">Sair do app</span><span class="sub">Desconecta este aparelho (vai pedir a senha de novo)</span></div>' +
+    '<span aria-hidden="true" style="color:var(--erro)">›</span></button></div>');
 }
 
 /* Parâmetros gerais */
