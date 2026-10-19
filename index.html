@@ -125,6 +125,7 @@
   .barras .col{flex:1;display:flex;flex-direction:column;align-items:center;justify-content:flex-end;gap:6px;height:100%}
   .barras .bar{width:100%;max-width:46px;border-radius:8px 8px 0 0;background:var(--navy);position:relative}
   .barras .bar span{position:absolute;top:-20px;left:50%;transform:translateX(-50%);font-size:12px;font-weight:700;color:var(--texto)}
+header.com-voltar{padding-left:70px}
 </style>
 </head>
 <body>
@@ -133,7 +134,10 @@
   <button onclick="ir('config')" aria-label="Configurações" style="position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
-  <div class="marca">SESMT · GRANTEL</div>
+  <button id="bvoltar" class="escondido" onclick="voltar()" aria-label="Voltar" style="position:absolute;left:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
+<svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6"/></svg>
+</button>
+<div class="marca">SESMT · GRANTEL</div>
   <h1 id="h-titulo">Carregando…</h1>
   <p id="h-sub"></p>
 </header>
@@ -141,15 +145,15 @@
 <main id="tela"></main>
 
 <nav aria-label="Navegação principal">
-  <button data-aba="inicio" class="ativo" onclick="ir('inicio')">
+  <button data-aba="inicio" class="ativo" onclick="irAba('inicio')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m3 9 9-7 9 7v11a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>Início</button>
-  <button data-aba="agenda" onclick="ir('agenda')">
+  <button data-aba="agenda" onclick="irAba('agenda')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="18" height="18" rx="2"/><path d="M16 2v4M8 2v4M3 10h18"/></svg>Agenda</button>
-  <button data-aba="dds" onclick="ir('dds')">
+  <button data-aba="dds" onclick="irAba('dds')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/></svg>DDS</button>
-  <button data-aba="veiculos" onclick="ir('veiculos')">
+  <button data-aba="veiculos" onclick="irAba('veiculos')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>Veículos</button>
-  <button data-aba="equipe" onclick="ir('equipe')">
+  <button data-aba="equipe" onclick="irAba('equipe')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Equipe</button>
 </nav>
 
@@ -187,6 +191,7 @@ function telaLogin(msg) {
   TOK++;
   try { localStorage.removeItem('sesmt_token'); } catch (e) { }
   document.querySelector('nav').classList.add('escondido');
+PILHA.length = 0; atualizarVoltar();
   cabec('Entrar', 'SESMT Grantel');
   carregando(false);
   tela('<section class="card" style="display:flex;flex-direction:column;gap:12px;max-width:420px;width:100%;align-self:center">' +
@@ -227,6 +232,85 @@ function aviso(msg, ms) {
 function falha(e) { carregando(false); aviso('⚠ ' + (e && e.message ? e.message : e), 8000); }
 function tela(html) { $('tela').innerHTML = html; window.scrollTo(0, 0); }
 function cabec(t, s) { $('h-titulo').textContent = t; $('h-sub').textContent = s || ''; }
+
+/* ---------- MÊS DOS DOCUMENTOS (um só para o app todo, escolhido na tela inicial) ---------- */
+const NOMES_MES = ['Janeiro', 'Fevereiro', 'Março', 'Abril', 'Maio', 'Junho', 'Julho', 'Agosto', 'Setembro', 'Outubro', 'Novembro', 'Dezembro'];
+function mesAtualISO() { const d = new Date(); return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'); }
+function mesRef() {
+  try {
+    const g = JSON.parse(localStorage.getItem('sesmt_mes') || 'null');
+    if (g && g.m && g.em === mesAtualISO()) return g.m; // quando vira o mês, volta sozinho para o mês atual
+  } catch (e) { }
+  return mesAtualISO();
+}
+function nomeMesRef(m) { const p = String(m || mesRef()).split('-'); return NOMES_MES[Number(p[1]) - 1] + '/' + p[0]; }
+function definirMesRef(m, depois) {
+  try {
+    if (m === mesAtualISO()) localStorage.removeItem('sesmt_mes');
+    else localStorage.setItem('sesmt_mes', JSON.stringify({ m: m, em: mesAtualISO() }));
+  } catch (e) { }
+  E.chk = null; E.ag = null;
+  (depois || verInicio)();
+  aviso('Mês dos documentos: ' + nomeMesRef(m), 2500);
+  setTimeout(function () { preCarregar(true); }, 800);
+}
+function mudarMesRef(delta, depois) {
+  const p = mesRef().split('-'), d = new Date(Number(p[0]), Number(p[1]) - 1 + delta, 1);
+  definirMesRef(d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0'), depois);
+}
+function cartaoMes() {
+  const m = mesRef(), atual = m === mesAtualISO();
+  const seta = function (d, rot, t) { return '<button class="sec" aria-label="' + rot + '" onclick="mudarMesRef(' + d + ')" style="width:46px;padding:0;font-size:22px">' + t + '</button>'; };
+  return '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">MÊS DOS DOCUMENTOS</span>' +
+    '<div style="display:flex;align-items:center;gap:10px">' + seta(-1, 'Mês anterior', '‹') +
+    '<b style="flex:1;text-align:center;font-size:20px">' + esc(nomeMesRef(m)) + '</b>' + seta(1, 'Próximo mês', '›') + '</div>' +
+    (atual ? '<span class="sub">Mês atual. Vale para veículos, alojamentos, checklist e agenda.</span>'
+      : '<span class="chip aviso" style="align-self:flex-start">Fora do mês atual</span>' +
+        '<button class="sec peq" onclick="definirMesRef(mesAtualISO())">Voltar para ' + esc(nomeMesRef(mesAtualISO())) + '</button>') +
+    '</section>';
+}
+function etiquetaMes() {
+  const m = mesRef(), atual = m === mesAtualISO();
+  return '<div class="linha" style="align-items:center"><span class="sub">Mês dos documentos: <b style="color:var(--texto)">' + esc(nomeMesRef(m)) + '</b> · troque na tela inicial</span>' +
+    (atual ? '' : '<span class="chip aviso">Fora do mês atual</span>') + '</div>';
+}
+
+/* ---------- BOTÃO VOLTAR (seta no cabeçalho e voltar do celular) ---------- */
+const PILHA = []; // telas abertas, da primeira à atual
+const ABA_DA_TELA = { inicio: 'inicio', agenda: 'agenda', dds: 'dds', veiculos: 'veiculos', veiculo: 'veiculos', equipe: 'equipe' };
+function marcar(chave, fn, formulario) {
+  const i = PILHA.findIndex(function (p) { return p.chave === chave; });
+  if (i >= 0) { PILHA.length = i + 1; PILHA[i].fn = fn; }
+  else {
+    const topo = PILHA[PILHA.length - 1];
+    if (topo && topo.formulario) PILHA.pop(); // depois de salvar um cadastro, o voltar não reabre o formulário
+    PILHA.push({ chave: chave, fn: fn, formulario: !!formulario });
+  }
+  const aba = ABA_DA_TELA[chave] || '';
+  document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('ativo', b.dataset.aba === aba); });
+  atualizarVoltar();
+}
+function atualizarVoltar() {
+  const tem = PILHA.length > 1;
+  $('bvoltar').classList.toggle('escondido', !tem);
+  document.querySelector('header').classList.toggle('com-voltar', tem);
+}
+function voltar() {
+  fecharFolha();
+  if (PILHA.length > 1) { PILHA.pop(); PILHA[PILHA.length - 1].fn(); }
+  else if (!PILHA.length || PILHA[0].chave !== 'inicio') irAba('inicio');
+}
+function irAba(aba) {
+  PILHA.length = 0;
+  if (aba !== 'inicio') PILHA.push({ chave: 'inicio', fn: verInicio });
+  ir(aba);
+}
+function armarVoltar() { try { if (!history.state || history.state.sesmt !== 'topo') history.pushState({ sesmt: 'topo' }, ''); } catch (e) { } }
+window.addEventListener('popstate', function () {
+  if ($('folha')) { fecharFolha(); armarVoltar(); return; }
+  if (PILHA.length > 1) { voltar(); armarVoltar(); return; }
+  aviso('Toque em voltar de novo para sair do app.', 2500);
+});
 
 /* Mostra na hora o que já foi carregado antes e atualiza por trás */
 let TOK = 0;
@@ -349,9 +433,10 @@ function esquecer(prefixos) {
 }
 
 /* Busca por trás os dados das outras telas, para elas abrirem na hora */
-async function preCarregar() {
-  const lista = [['apiChecklistMes', ['']], ['apiAgenda', ['']], ['apiColaboradores', []], ['apiVeiculos', ['']],
-                 ['apiAlojamentos', ['']], ['apiFadigaOpcoes', []], ['apiDesempenho', []]];
+async function preCarregar(soMes) {
+const M = mesRef();
+  const lista = [['apiChecklistMes', [M]], ['apiAgenda', [M]], ['apiVeiculos', [M]], ['apiAlojamentos', [M]]].concat(soMes ? [] : [['apiColaboradores', []],
+                 ['apiFadigaOpcoes', []], ['apiDesempenho', []]]);
   for (let i = 0; i < lista.length; i++) {
     if (!token()) return;
     try {
@@ -391,11 +476,12 @@ function ir(aba, extra) {
 
 /* ---------- INÍCIO ---------- */
 function verInicio() {
+marcar('inicio', verInicio);
   return carregarTela('apiPainel', [], function (p) {
     E.painel = p;
     cabec('Painel SESMT', p.obra + ' · ' + p.hoje);
     const d = p.dds;
-    let h = '<section class="card" style="display:flex;flex-direction:column;gap:14px">';
+    let h = cartaoMes() + '<section class="card" style="display:flex;flex-direction:column;gap:14px">';
     if (d.erro) {
       h += '<div class="sub">DDS: ' + esc(d.erro) + '</div>';
     } else {
@@ -446,6 +532,7 @@ async function gerarSemana(btn) {
 
 /* ---------- DDS ---------- */
 function verDDS() {
+marcar('dds', verDDS);
   cabec('DDS', 'Diálogo Diário de Segurança');
   return carregarTela('apiListaDDS', [], function (l) {
     let h = '<div class="grade2"><button onclick="gerarDDS(this)">Gerar próximo</button><button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
@@ -461,12 +548,13 @@ function verDDS() {
 
 /* ---------- VEÍCULOS ---------- */
 function verVeiculos(mes) {
-  return carregarTela('apiVeiculos', [mes || (E.veic && E.veic.mes) || ''], function (r) {
+marcar('veiculos', function () { verVeiculos(); });
+  return carregarTela('apiVeiculos', [mesRef()], function (r) {
     E.veic = r;
     const feitos = r.veiculos.filter(function (v) { return v.gerado; }).length;
     cabec('Veículos', 'Relatório fotográfico · ' + feitos + ' de ' + r.veiculos.length + ' gerados');
     let h = '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
-      '<div class="campo"><label for="mes">Mês de referência</label><input type="month" id="mes" value="' + esc(r.mes) + '" onchange="verVeiculos(this.value)"></div>' +
+      etiquetaMes() +
       '<button onclick="gerarVeiculos(this)">Gerar relatórios pendentes</button></section>';
     h += '<div class="lista">';
     r.veiculos.forEach(function (v, i) {
@@ -482,12 +570,13 @@ function verVeiculos(mes) {
 }
 
 function verVeiculo(i) {
+marcar('veiculo', function () { verVeiculo(i); });
   TOK++;
   const r = E.veic, v = r.veiculos[i];
   E.vi = i;
   const un = v.medicao === 'HORÍMETRO' ? 'h' : 'km';
   cabec(v.tipo + ' · ' + v.placa, v.marca + ' · ' + v.operador);
-  let h = '<button class="sec" onclick="verVeiculos()" style="align-self:flex-start">‹ Voltar à frota</button>';
+  let h = '';
   h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">FOTOS · ' + esc(r.mes) + '</span>';
   r.secoes.forEach(function (s, k) {
     h += '<div class="secao"><div class="n' + (v.fotos[k] ? ' tem' : '') + '">' + v.fotos[k] + '</div>' +
@@ -621,6 +710,7 @@ async function gerarVeiculos(btn) {
 
 /* ---------- EQUIPE ---------- */
 function verEquipe() {
+marcar('equipe', verEquipe);
   return carregarTela('apiColaboradores', [], function (l) { E.colab = l; desenharEquipe(''); });
 }
 
@@ -680,6 +770,7 @@ async function novoColab(btn) {
 
 /* ---------- FADIGA ---------- */
 function verFadiga() {
+marcar('fadiga', verFadiga);
   cabec('Controle de fadiga', 'Escolha quem vai dirigir');
   return carregarTela('apiFadigaOpcoes', [], function (f) {
     E.fad = f;
@@ -723,13 +814,14 @@ async function gerarFadigaApp(btn) {
 
 /* ---------- ALOJAMENTOS ---------- */
 function verAloj(mes) {
-  return carregarTela('apiAlojamentos', [mes || (E.aloj && E.aloj.mes) || ''], function (r) {
+marcar('aloj', function () { verAloj(); });
+  return carregarTela('apiAlojamentos', [mesRef()], function (r) {
     E.aloj = r;
     const ativas = r.casas.filter(function (c) { return c.status === 'ATIVA'; });
     const feitos = ativas.filter(function (c) { return c.gerado; }).length;
     cabec('Alojamentos', 'Relatório NR-24 · ' + feitos + ' de ' + ativas.length + ' gerados');
     let h = '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
-      '<div class="campo"><label for="ames">Mês de referência</label><input type="month" id="ames" value="' + esc(r.mes) + '" onchange="verAloj(this.value)"></div>' +
+      etiquetaMes() +
       '<span class="sub">Nº do documento do mês: ' + (r.numero ? '<b>' + esc(r.numero) + '</b>' : 'definido no primeiro relatório gerado') + '</span>' +
       '<div class="grade2"><button onclick="gerarAlojPendentes(this)">Gerar pendentes</button><button class="sec" onclick="formCasa(null)">+ Nova casa</button></div></section>';
     h += '<div class="lista">';
@@ -758,6 +850,7 @@ async function gerarAlojPendentes(btn) {
 }
 
 async function verCasa(id) {
+marcar('casa', function () { verCasa(id); });
   TOK++;
   carregando(true);
   try {
@@ -785,7 +878,7 @@ async function carregarMiniaturas_() {
 function desenharCasa() {
   const d = E.casa, c = d.casa, ins = d.inspecao || {};
   cabec(c.identificacao, 'Mês ' + E.aloj.mes + ' · ' + d.fotos.length + ' fotos');
-  let h = '<button class="sec" onclick="verAloj()" style="align-self:flex-start">‹ Voltar às casas</button>';
+  let h = '';
 
   // Fotos
   h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">FOTOS DO MÊS</span>' +
@@ -864,9 +957,10 @@ function lerCamposCasa(id, status) {
 }
 
 function formCasa() {
+marcar('novacasa', formCasa, true);
   TOK++;
   cabec('Nova casa', 'Cadastro de alojamento');
-  tela('<button class="sec" onclick="verAloj()" style="align-self:flex-start">‹ Voltar às casas</button>' +
+  tela(
     '<section class="card" style="display:flex;flex-direction:column;gap:12px">' + camposCasa({}) +
     '<button onclick="salvarCasa(this,\'\')">Cadastrar casa</button></section>');
 }
@@ -991,6 +1085,7 @@ async function gerarCasa(btn) {
 
 /* ---------- CONFIGURAÇÕES ---------- */
 function verConfig() {
+marcar('config', verConfig);
   TOK++;
   cabec('Configurações', 'Altere os dados sem abrir a planilha');
   const op = [
@@ -1014,10 +1109,11 @@ function verConfig() {
 
 /* Parâmetros gerais */
 function cfgParametros() {
+marcar('param', cfgParametros);
   cabec('Parâmetros gerais', 'Aba CONFIG da planilha');
   return carregarTela('apiCfgParametros', [], function (ps) {
     E.params = ps;
-    let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button><div class="lista">';
+    let h = '<div class="lista">';
     ps.forEach(function (p, i) {
       h += '<div class="item" style="flex-direction:column;align-items:stretch;gap:6px">' +
         '<label for="pp' + i + '" style="margin:0">' + esc(p.nome) + '</label>' +
@@ -1039,6 +1135,7 @@ async function salvarParametro(i, btn) {
 
 /* Colaboradores / Veículos (editor genérico) */
 function cfgTabela(chave, filtro) {
+marcar('tabela', function () { cfgTabela(chave); });
   return carregarTela('apiCfgTabela', [chave], function (t) { E.tab = t; desenharTabela(filtro || ''); });
 }
 
@@ -1046,7 +1143,7 @@ function desenharTabela(filtro) {
   const t = E.tab, f = filtro.toUpperCase();
   const ativos = t.linhas.filter(function (l) { return l.ativo; }).length;
   cabec(t.titulo, ativos + ' ativos · ' + (t.linhas.length - ativos) + ' inativos');
-  let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button>' +
+  let h = '' +
     '<section class="card" style="display:flex;flex-direction:column;gap:10px">' +
     '<div class="campo"><label for="tbusca">Buscar</label><input id="tbusca" value="' + esc(filtro) + '" oninput="desenharTabela(this.value)"></div>' +
     '<button onclick="formLinha(-1)">+ Incluir</button></section><div class="lista">';
@@ -1063,11 +1160,12 @@ function desenharTabela(filtro) {
 }
 
 function formLinha(i) {
+marcar('linha', function () { formLinha(i); }, true);
   TOK++;
   const t = E.tab, l = i >= 0 ? t.linhas[i] : { linha: 0, dados: {}, ativo: true };
   E.tabIdx = i;
   cabec(i >= 0 ? l.dados[t.campoChave] : 'Incluir em ' + t.titulo, t.titulo);
-  let h = '<button class="sec" onclick="desenharTabela(\'\')" style="align-self:flex-start">‹ ' + esc(t.titulo) + '</button>' +
+  let h = '' +
     '<section class="card" style="display:flex;flex-direction:column;gap:12px">';
   t.colunas.forEach(function (c, k) {
     const v = l.dados[c.nome] == null ? '' : l.dados[c.nome];
@@ -1115,6 +1213,7 @@ async function statusLinha(ativo) {
 
 /* Calendário */
 function cfgCalendario() {
+marcar('calendario', cfgCalendario);
   return carregarTela('apiCfgCalendario', [], function (c) { E.cal = c; desenharCalendario(); });
 }
 
@@ -1130,7 +1229,7 @@ function desenharCalendario() {
     });
     return h + '<button class="sec" onclick="E.cal.' + nome + '.push({data:\'\',desc:\'\'});desenharCalendario()">+ Adicionar data</button></section>';
   };
-  let h = '<button class="sec" onclick="verConfig()" style="align-self:flex-start">‹ Configurações</button>' +
+  let h = '' +
     '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">DIAS COM EXPEDIENTE</span><div class="grade2">';
   c.semana.forEach(function (d, i) {
     h += '<label class="item" style="border:1px solid var(--linha);border-radius:10px;cursor:pointer;margin:0">' +
@@ -1151,6 +1250,7 @@ async function salvarCalendario(btn) {
 
 /* ---------- AGENDA, CHECKLIST E DESEMPENHO ---------- */
 function verAgenda(aba) {
+marcar('agenda', function () { verAgenda(); });
   E.abaAg = aba || E.abaAg || 'check';
   ({ check: agChecklist, cal: agCalendario, graf: agDesempenho })[E.abaAg]();
 }
@@ -1166,7 +1266,7 @@ const ST = {
 };
 
 function agChecklist(mes) {
-  return carregarTela('apiChecklistMes', [mes || (E.chk && E.chk.mes) || ''], function (c) { E.chk = c; desenharChecklist(); });
+  return carregarTela('apiChecklistMes', [mesRef()], function (c) { E.chk = c; desenharChecklist(); });
 }
 
 function desenharChecklist() {
@@ -1174,7 +1274,7 @@ function desenharChecklist() {
   cabec('Checklist do mês', 'Documentos de ' + c.nomeMes + ' · prazo ' + c.prazo);
   let h = abasAgenda() +
     '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
-    '<div class="campo"><label for="chkmes">Mês de referência</label><input type="month" id="chkmes" value="' + esc(c.mes) + '" onchange="agChecklist(this.value)"></div>' +
+    etiquetaMes() +
     '<div style="display:flex;justify-content:space-between;align-items:baseline"><span class="grande" style="font-size:32px">' + c.pct + '%</span>' +
     '<span class="sub">' + c.feitos + ' de ' + c.total + ' entregues</span></div>' +
     '<div style="height:10px;border-radius:5px;background:var(--cinza-bg)"><div style="width:' + c.pct + '%;height:10px;border-radius:5px;background:var(--navy)"></div></div></section>';
@@ -1242,7 +1342,7 @@ function detalheDoc(i) {
 const COR_EV = { prazo: '#8E1B1B', ok: '#145C32', doc: '#1F3864', venc: '#D9822B', feriado: '#8892A3', extra: '#5B5FC7', ativ: '#0E7C86' };
 
 function agCalendario(mes) {
-  return carregarTela('apiAgenda', [mes || (E.ag && E.ag.mes) || ''], function (a) {
+  return carregarTela('apiAgenda', [mesRef()], function (a) {
     const mesmo = E.ag && E.ag.mes === a.mes;
     E.ag = a;
     if (!mesmo || !E.agDia) E.agDia = a.hoje || 0;
@@ -1255,9 +1355,9 @@ function desenharAgenda() {
   cabec('Agenda', a.titulo);
   let h = abasAgenda() + '<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
     '<div style="display:flex;justify-content:space-between;align-items:center">' +
-    '<button class="sec peq" aria-label="Mês anterior" onclick="agCalendario(\'' + a.anterior + '\')">‹</button>' +
+    '<button class="sec peq" aria-label="Mês anterior" onclick="mudarMesRef(-1, agCalendario)">‹</button>' +
     '<b style="font-size:17px;text-transform:capitalize">' + esc(a.titulo) + '</b>' +
-    '<button class="sec peq" aria-label="Próximo mês" onclick="agCalendario(\'' + a.proximo + '\')">›</button></div><div class="cal">';
+    '<button class="sec peq" aria-label="Próximo mês" onclick="mudarMesRef(1, agCalendario)">›</button></div><div class="cal">';
   ['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].forEach(function (d) { h += '<div class="sem">' + d + '</div>'; });
   for (let k = 0; k < a.primeiroDia; k++) h += '<div></div>';
   for (let d = 1; d <= a.totalDias; d++) {
@@ -1350,6 +1450,8 @@ function agDesempenho() {
 }
 
 aplicarTema();
+try { history.replaceState({ sesmt: 'base' }, ''); } catch (e) { }
+armarVoltar();
 if (token()) { verInicio(); setTimeout(preCarregar, 2500); } else telaLogin();
 </script>
 </body>
