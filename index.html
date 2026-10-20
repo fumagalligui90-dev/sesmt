@@ -767,11 +767,12 @@ marcar('veiculo', function () { verVeiculo(i); });
   h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">FOTOS · ' + esc(r.mes) + '</span>';
   r.secoes.forEach(function (s, k) {
     h += '<div class="secao"><div class="n' + (v.fotos[k] ? ' tem' : '') + '">' + v.fotos[k] + '</div>' +
-      '<div class="info" style="flex:1;display:flex;flex-direction:column"><span class="t">' + esc(s) + '</span><span class="sub">' + v.fotos[k] + ' de ' + FOTOS_POR_PARTE + ' fotos' +
+      '<div class="info" style="flex:1;display:flex;flex-direction:column"><span class="t">' + esc(s) + '</span><span class="sub">' + v.fotos[k] + ' de ' + FOTOS_POR_PARTE + ' fotos' + (naFila('veic|' + r.mes + '|' + v.placa + '|' + k).length ? ' · ' + naFila('veic|' + r.mes + '|' + v.placa + '|' + k).length + ' aguardando envio' : '') +
       (v.fotos[k] > FOTOS_POR_PARTE ? ' · <b style="color:var(--vermelho, #c62828)">exclua ' + (v.fotos[k] - FOTOS_POR_PARTE) + '</b>' : '') + '</span></div>' +
       (v.fotos[k] ? '<button class="sec peq" onclick="verFotosSecao(' + k + ')">' + (E.vsec === k ? 'Fechar' : 'Ver') + '</button>' : '') +
       '<button class="sec peq" onclick="escolherFotos(' + k + ')">+ Fotos</button></div>';
     if (E.vsec === k && v.fotos[k]) h += gradeFotosVeic(v, k);
+    h += faixaFila('veic|' + r.mes + '|' + v.placa + '|' + k, 'filaV' + k);
   });
   if (v.pastaUrl) h += '<a href="' + esc(v.pastaUrl) + '" target="_blank" class="sub">Abrir a pasta no Drive</a>';
   h += '</section>';
@@ -792,7 +793,8 @@ marcar('veiculo', function () { verVeiculo(i); });
 const FOTOS_POR_PARTE = 4;   // o relatório do veículo tem 4 fotos em cada parte
 function escolherFotos(k) {
   const v = E.veic.veiculos[E.vi];
-  if ((v.fotos[k] || 0) >= FOTOS_POR_PARTE) return aviso('Esta parte já tem ' + v.fotos[k] + ' fotos (limite ' + FOTOS_POR_PARTE + '). Toque em Ver e exclua uma para trocar.', 7000);
+  const naFilaK = naFila('veic|' + E.veic.mes + '|' + v.placa + '|' + k).length;
+  if ((v.fotos[k] || 0) + naFilaK >= FOTOS_POR_PARTE) return aviso('Esta parte já tem ' + ((v.fotos[k] || 0) + naFilaK) + ' fotos, contando as da fila (limite ' + FOTOS_POR_PARTE + '). Exclua uma para trocar.', 7000);
   E.secao = k;
   const inp = $('arquivo'); inp.value = '';
   inp.onchange = function () { enviarFotos(Array.prototype.slice.call(inp.files)); };
@@ -839,31 +841,24 @@ function emPacotes(lista, n) {
 async function enviarFotos(files) {
   if (!files.length) return;
   const v = E.veic.veiculos[E.vi], mes = E.veic.mes, secao = E.secao;
-  const livre = FOTOS_POR_PARTE - (v.fotos[secao] || 0);
-  if (files.length > livre) return aviso('Esta parte aceita só mais ' + livre + ' foto(s) (limite ' + FOTOS_POR_PARTE + ' por parte). Escolha de novo.', 7000);
+  const dest = 'veic|' + mes + '|' + v.placa + '|' + secao;
+  const livre = FOTOS_POR_PARTE - (v.fotos[secao] || 0) - naFila(dest).length;
+  if (files.length > livre) return aviso('Esta parte aceita só mais ' + Math.max(0, livre) + ' foto(s) (limite ' + FOTOS_POR_PARTE + ' por parte, contando as da fila). Escolha de novo.', 7000);
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
-  const itens = files.map(function (f, i) { return { f: f, i: i }; });
-  let feitos = 0;
   carregando(true);
   try {
-    aviso('Enviando fotos: 0 de ' + files.length + '…', 120000);
-    await emParalelo(emPacotes(itens, 3), 2, async function (pacote) {
-      const lote = [];
-      for (const it of pacote) {
-        const r = await reduzir(it.f);
-        lote.push({ nome: String(it.f.lastModified || Date.now()) + '_' + String(it.i).padStart(3, '0') + '.jpg', dataUrl: r.foto });
-      }
-      await run('apiUploadFotosLote', mes, v.placa, secao, lote);
-      feitos += lote.length;
-      aviso('Enviando fotos: ' + feitos + ' de ' + files.length + '…', 120000);
-    });
-    v.fotos[secao] = (v.fotos[secao] || 0) + files.length;
-    if (E.vfotos) delete E.vfotos[chaveFotosVeic(v, secao)];
-    esquecer(['apiVeiculos', 'apiPainel']);
-    aviso('✔ ' + files.length + ' foto(s) enviada(s)');
-    verVeiculo(E.vi);
+    const itens = [], agora = Date.now();
+    for (let i = 0; i < files.length; i++) {
+      const rr = await reduzir(files[i]);
+      itens.push({ chave: novaChave(), tipo: 'veic', mes: mes, placa: v.placa, secao: secao,
+        nome: String(files[i].lastModified || agora) + '_' + String(i).padStart(3, '0') + '.jpg', foto: rr.foto, mini: rr.mini, criado: agora + i });
+    }
+    await guardarNaFila(itens);
+    carregando(false);
+    aviso(navigator.onLine ? '✔ ' + itens.length + ' foto(s) guardada(s). Enviando…' : '📶 Sem internet: ' + itens.length + ' foto(s) guardada(s) no celular. Serão enviadas quando a internet voltar.', 6000);
+    redesenharVeic();
+    processarFila();
   } catch (e) { falha(e); }
-  carregando(false);
 }
 
 
@@ -1083,6 +1078,7 @@ function desenharCasa() {
     '<option value="__OUTRA">Outra…</option></select>' +
     '<input id="alego" class="escondido" placeholder="Escreva a legenda"></div>' +
     '<button onclick="escolherFotosCasa()">+ Tirar / adicionar fotos</button>';
+  h += faixaFila('aloj|' + E.aloj.mes + '|' + c.id, 'filaCasa');
   if (!d.fotos.length) h += '<span class="sub">Nenhuma foto neste mês ainda.</span>';
   h += '<div class="grade2">';
   d.fotos.forEach(function (f, i) {
@@ -1220,36 +1216,21 @@ function escolherFotosCasa() {
 async function enviarFotosCasa(files, leg) {
   if (!files.length) return;
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
-  const casa = E.casa, mes = E.aloj.mes, base = casa.fotos.length;
-  let feitos = 0;
+  const casa = E.casa, mes = E.aloj.mes, id = casa.casa.id;
+  const base = casa.fotos.length + naFila('aloj|' + mes + '|' + id).length;
   carregando(true);
   try {
-    aviso('Enviando fotos: 0 de ' + files.length + '…', 120000);
-    // Pacotes em sequência para manter a ordem das fotos no relatório
-    const pacotes = emPacotes(files, 3);
-    let proximo = null;
-    const preparar = async function (pacote, ini) {
-      const lote = [], minis = [];
-      for (let k = 0; k < pacote.length; k++) {
-        const r = await reduzir(pacote[k]);
-        lote.push({ dataUrl: r.foto, ordem: base + ini + k }); minis.push(r.mini);
-      }
-      return { lote: lote, minis: minis };
-    };
-    proximo = preparar(pacotes[0], 0);
-    for (let p = 0; p < pacotes.length; p++) {
-      const atual = await proximo;
-      if (p + 1 < pacotes.length) proximo = preparar(pacotes[p + 1], (p + 1) * 3);   // já prepara o próximo enquanto envia
-      const r = await run('apiAlojUploadFotosLote', mes, casa.casa.id, leg, atual.lote);
-      r.forEach(function (f, k) { casa.fotos.push({ id: f.id, legenda: f.legenda, thumb: atual.minis[k] }); });
-      feitos += r.length;
-      aviso('Enviando fotos: ' + feitos + ' de ' + files.length + '…', 120000);
+    const itens = [], agora = Date.now();
+    for (let i = 0; i < files.length; i++) {
+      const rr = await reduzir(files[i]);
+      itens.push({ chave: novaChave(), tipo: 'aloj', mes: mes, casa: id, legenda: leg, ordem: base + i, foto: rr.foto, mini: rr.mini, criado: agora + i });
     }
-    esquecer(['apiAlojamentos', 'apiPainel']);
-    aviso('✔ ' + files.length + ' foto(s) enviada(s) como ' + leg);
+    await guardarNaFila(itens);
+    carregando(false);
+    aviso(navigator.onLine ? '✔ ' + itens.length + ' foto(s) guardada(s) como ' + leg + '. Enviando…' : '📶 Sem internet: ' + itens.length + ' foto(s) guardada(s) no celular. Serão enviadas quando a internet voltar.', 6000);
     if (E.casa === casa) { const y = window.scrollY; guardarRascunhoCasa(); desenharCasa(); window.scrollTo(0, y); }
+    processarFila();
   } catch (e) { falha(e); }
-  carregando(false);
 }
 
 
@@ -1648,6 +1629,154 @@ function agDesempenho() {
 aplicarTema();
 try { history.replaceState({ sesmt: 'base' }, ''); } catch (e) { }
 armarVoltar();
+/* ---------- FILA DE FOTOS (funciona sem internet) ----------
+   As fotos ficam guardadas no celular (IndexedDB) e vão para o Drive quando houver internet. */
+const FILA = { db: null, itens: [], enviando: false, feitos: 0, total: 0 };
+function abrirBancoFila() {
+  if (FILA.db) return Promise.resolve(FILA.db);
+  return new Promise(function (ok, erro) {
+    const req = indexedDB.open('sesmt_fila', 1);
+    req.onupgradeneeded = function () { req.result.createObjectStore('fotos', { keyPath: 'chave' }); };
+    req.onsuccess = function () { FILA.db = req.result; ok(FILA.db); };
+    req.onerror = function () { erro(req.error); };
+  });
+}
+function gravarFila(fn) {
+  return abrirBancoFila().then(function (db) {
+    return new Promise(function (ok, erro) {
+      const tx = db.transaction('fotos', 'readwrite');
+      fn(tx.objectStore('fotos'));
+      tx.oncomplete = function () { ok(); };
+      tx.onerror = function () { erro(tx.error || new Error('Não consegui guardar as fotos no celular.')); };
+    });
+  });
+}
+async function carregarFila() {
+  try {
+    const db = await abrirBancoFila();
+    FILA.itens = await new Promise(function (ok, erro) {
+      const q = db.transaction('fotos', 'readonly').objectStore('fotos').getAll();
+      q.onsuccess = function () { ok(q.result || []); }; q.onerror = function () { erro(q.error); };
+    });
+    FILA.itens.sort(function (a, b) { return a.criado - b.criado; });
+  } catch (e) { FILA.itens = []; }
+  atualizarBarraFila();
+}
+async function guardarNaFila(itens) {
+  await gravarFila(function (s) { itens.forEach(function (it) { s.put(it); }); });
+  FILA.itens = FILA.itens.concat(itens);
+  atualizarBarraFila();
+}
+async function tirarDaFila(chaves) {
+  await gravarFila(function (s) { chaves.forEach(function (c) { s.delete(c); }); });
+  FILA.itens = FILA.itens.filter(function (x) { return chaves.indexOf(x.chave) < 0; });
+  atualizarBarraFila();
+}
+function destinoFila(it) { return it.tipo === 'veic' ? 'veic|' + it.mes + '|' + it.placa + '|' + it.secao : 'aloj|' + it.mes + '|' + it.casa; }
+function naFila(destino) { return FILA.itens.filter(function (x) { return destinoFila(x) === destino; }); }
+function novaChave() { return Date.now().toString(36) + '-' + Math.random().toString(36).slice(2, 9); }
+function erroDeRede(e) {
+  return !navigator.onLine || e instanceof TypeError || /Resposta inesperada|Failed to fetch|Load failed|NetworkError|sess[aã]o/i.test(String(e && e.message));
+}
+
+// Faixa com as miniaturas que ainda estão no celular (dentro da tela do veículo ou da casa)
+function faixaFila(destino, id) {
+  const its = naFila(destino);
+  let h = '<div id="' + id + '" style="display:flex;flex-direction:column;gap:2px">';
+  if (its.length) {
+    const comErro = its.filter(function (x) { return x.erro; })[0];
+    h += '<span class="sub">⏳ ' + its.length + ' foto(s) no celular aguardando envio</span>' +
+      (comErro ? '<span class="sub" style="color:var(--vermelho, #c62828)">⚠ ' + esc(comErro.erro) + '</span>' : '') +
+      '<div style="display:flex;gap:8px;flex-wrap:wrap;margin-top:6px">';
+    its.forEach(function (x) {
+      h += '<div style="position:relative;width:76px">' +
+        '<img src="' + x.mini + '" alt="Foto aguardando envio" style="width:76px;height:57px;object-fit:cover;border-radius:8px;opacity:.8;border:1px dashed var(--linha)">' +
+        (x.erro ? '<span style="position:absolute;left:4px;top:2px">⚠</span>' : '') +
+        '<button class="sec peq" aria-label="Tirar da fila" onclick="tirarFotoFila(\'' + x.chave + '\')" style="position:absolute;right:-6px;top:-8px;width:auto;min-height:0;padding:0 7px;line-height:22px">✕</button></div>';
+    });
+    h += '</div>';
+  }
+  return h + '</div>';
+}
+async function tirarFotoFila(chave) {
+  if (!confirm('Tirar esta foto da fila? Ela não será enviada.')) return;
+  try { await tirarDaFila([chave]); redesenharFotosAbertas(); } catch (e) { falha(e); }
+}
+function redesenharFotosAbertas() {
+  if ($('filaV0') && E.veic && E.vi != null) return redesenharVeic();
+  if ($('filaCasa') && E.casa) { const y = window.scrollY; guardarRascunhoCasa(); desenharCasa(); window.scrollTo(0, y); }
+}
+
+// Barra fixa acima do menu: quantas fotos faltam e botão "Enviar agora"
+function atualizarBarraFila() {
+  let b = $('filaBar');
+  const n = FILA.itens.length, nErro = FILA.itens.filter(function (x) { return x.erro; }).length;
+  if (!n) { if (b) b.remove(); return; }
+  if (!b) { b = document.createElement('div'); b.id = 'filaBar'; b.setAttribute('role', 'status'); document.body.appendChild(b); }
+  const nav = document.querySelector('nav');
+  const baixo = (nav && !nav.classList.contains('escondido') ? nav.offsetHeight : 0) + 8;
+  b.style.cssText = 'position:fixed;left:50%;transform:translateX(-50%);bottom:' + baixo + 'px;z-index:6;width:min(520px, calc(100% - 24px));box-sizing:border-box;' +
+    'background:var(--card);color:var(--texto);border:1px solid var(--linha);border-radius:14px;padding:8px 12px;display:flex;align-items:center;gap:10px;box-shadow:0 6px 20px rgba(0,0,0,.28);font-size:14px';
+  const txt = FILA.enviando ? '⏫ Enviando fotos: ' + FILA.feitos + ' de ' + FILA.total + '…'
+    : (navigator.onLine ? '⏳ ' : '📶 Sem internet · ') + n + ' foto(s) aguardando envio' + (nErro ? ' · ' + nErro + ' com erro' : '');
+  b.innerHTML = '<span style="flex:1">' + txt + '</span>' + (FILA.enviando ? '' : '<button class="sec peq" style="width:auto" onclick="processarFila(true)">Enviar agora</button>');
+}
+
+async function processarFila(manual) {
+  if (FILA.enviando || !token()) return;
+  if (manual) {
+    if (!navigator.onLine) return aviso('📶 Ainda sem internet. As fotos continuam guardadas no celular.');
+    FILA.itens.forEach(function (x) { delete x.erro; });
+  }
+  let pend = FILA.itens.filter(function (x) { return !x.erro; });
+  if (!pend.length) return atualizarBarraFila();
+  FILA.enviando = true; FILA.feitos = 0; FILA.total = pend.length; atualizarBarraFila();
+  let mudou = false, parou = false;
+  try {
+    while (true) {
+      pend = FILA.itens.filter(function (x) { return !x.erro; });
+      if (!pend.length) break;
+      // Até 3 fotos seguidas do mesmo destino (e mesma legenda) por envio, mantendo a ordem
+      const p = pend[0], grupo = [p];
+      const mesmo = function (x) { return destinoFila(x) === destinoFila(p) && (x.legenda || '') === (p.legenda || ''); };
+      for (let i = 1; i < pend.length && grupo.length < 3 && mesmo(pend[i]); i++) grupo.push(pend[i]);
+      try {
+        if (p.tipo === 'veic') {
+          await run('apiUploadFotosLote', p.mes, p.placa, p.secao, grupo.map(function (x) { return { nome: x.nome, dataUrl: x.foto, chave: x.chave }; }));
+          const v = E.veic && E.veic.mes === p.mes ? E.veic.veiculos.filter(function (y) { return y.placa === p.placa; })[0] : null;
+          if (v) v.fotos[p.secao] = (v.fotos[p.secao] || 0) + grupo.length;
+          if (E.vfotos) delete E.vfotos[p.mes + '|' + p.placa + '|' + p.secao];
+          esquecer(['apiVeiculos', 'apiPainel']);
+        } else {
+          const res = await run('apiAlojUploadFotosLote', p.mes, p.casa, p.legenda, grupo.map(function (x) { return { dataUrl: x.foto, ordem: x.ordem, chave: x.chave }; }));
+          if (E.casa && E.casa.casa.id === p.casa && E.aloj && E.aloj.mes === p.mes) {
+            res.forEach(function (f, k) { E.casa.fotos.push({ id: f.id, legenda: f.legenda, thumb: grupo[k].mini }); });
+          }
+          esquecer(['apiAlojamentos', 'apiPainel']);
+        }
+        await tirarDaFila(grupo.map(function (x) { return x.chave; }));
+        FILA.feitos += grupo.length; mudou = true;
+        FILA.enviando = true; atualizarBarraFila();
+      } catch (e) {
+        if (erroDeRede(e)) { parou = true; break; }   // sem sinal: tenta de novo depois
+        for (const x of grupo) { x.erro = e.message; try { await gravarFila(function (s) { s.put(x); }); } catch (er) { } }
+        mudou = true;
+      }
+    }
+  } finally { FILA.enviando = false; atualizarBarraFila(); }
+  if (mudou) redesenharFotosAbertas();
+  if (mudou && !parou && !FILA.itens.length) aviso('✔ Todas as fotos da fila foram enviadas para o Drive.');
+}
+
+window.addEventListener('online', function () { atualizarBarraFila(); setTimeout(function () { processarFila(); }, 1500); });
+window.addEventListener('offline', atualizarBarraFila);
+document.addEventListener('visibilitychange', function () { if (!document.hidden) processarFila(); });
+setInterval(function () { if (FILA.itens.length && !FILA.enviando && navigator.onLine) processarFila(); }, 45000);
+carregarFila().then(function () { processarFila(); });
+
+// App abre mesmo sem internet (guarda a tela no celular)
+if ('serviceWorker' in navigator) navigator.serviceWorker.register('sw.js').catch(function () { });
+
 if (token()) { verInicio(); setTimeout(preCarregar, 2500); } else telaLogin();
 </script>
 </body>
