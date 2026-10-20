@@ -530,7 +530,8 @@ async function carregarTemas() {
   try {
     const r = await run('apiTemasDDS');
     E.temas = r.temas || [];
-    if (!TEMAS && r.ultimo) TEMAS = Array.isArray(r.ultimo) ? r.ultimo : [r.ultimo];
+    const vazio = !(TEMAS || []).some(function (x) { return String(x.fazer || '').trim(); });
+    if (vazio && r.ultimo) TEMAS = Array.isArray(r.ultimo) ? r.ultimo : [r.ultimo];
     redesenharTemas();
   } catch (e) { }
 }
