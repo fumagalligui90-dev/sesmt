@@ -521,29 +521,197 @@ marcar('inicio', verInicio);
   });
 }
 
-async function gerarDDS(btn) {
+/* ---------- TEMA DO DDS (itens 2.1 a 2.4) ---------- */
+let TEMA = null;   // tema em edição: { fazer, riscos, evitar, compromissos }
+function semAcento(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
+async function carregarTemas() {
+  if (E.temas) return;
+  try {
+    const r = await run('apiTemasDDS');
+    E.temas = r.temas || [];
+    if (!TEMA && r.ultimo) TEMA = r.ultimo;
+    const c = document.getElementById('cartaoTema');
+    if (c) c.outerHTML = cartaoTema();
+  } catch (e) { }
+}
+function cartaoTema() {
+  const t = TEMA || {};
+  const campo = function (chave, rotulo) {
+    return '<label class="sub" for="t_' + chave + '"><b>' + rotulo + '</b></label>' +
+      '<textarea id="t_' + chave + '" rows="3" oninput="temaCampo(\'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
+  };
+  return '<section class="card" id="cartaoTema" style="display:flex;flex-direction:column;gap:8px"><span class="rotulo">TEMA DO DDS</span>' +
+    '<label class="sub" for="t_fazer"><b>2.1 O que vamos fazer?</b></label>' +
+    '<input id="t_fazer" list="listaTemas" autocomplete="off" placeholder="Escreva ou escolha a atividade de hoje" value="' + esc(t.fazer || '') + '" oninput="temaFazer(this.value, false)" onchange="temaFazer(this.value, true)">' +
+    '<datalist id="listaTemas">' + (E.temas || []).map(function (x) { return '<option value="' + esc(x.fazer) + '">'; }).join('') + '</datalist>' +
+    '<span id="tAviso" class="sub">' + (E.temas ? (t.fazer ? 'Sem escolher outro, os próximos DDS repetem este tema.' : 'Escolha a atividade e os outros itens vêm preenchidos.') : 'Carregando temas…') + '</span>' +
+    campo('riscos', '2.2 Onde podemos nos machucar nesse trabalho') +
+    campo('evitar', '2.3 Como podemos evitar o machucado') +
+    campo('compromissos', '2.4 Quais são os nossos compromissos?') +
+    '<button class="sec" onclick="salvarTema(this)">Salvar tema para o DDS automático</button></section>';
+}
+function temaCampo(chave, valor) { TEMA = TEMA || {}; TEMA[chave] = valor; }
+function temaFazer(v, fim) {
+  TEMA = TEMA || {};
+  TEMA.fazer = v;
+  const lista = E.temas || [], alvo = semAcento(v).trim();
+  let achou = lista.filter(function (x) { return semAcento(x.fazer).trim() === alvo; })[0], msg = '';
+  if (!achou && fim && alvo) {
+    const pal = alvo.split(/[^a-z0-9]+/).filter(function (p) { return p.length > 3; });
+    let melhor = null, pts = 0;
+    lista.forEach(function (x) {
+      const txt = semAcento(x.fazer + ' ' + x.riscos);
+      let p = 0;
+      pal.forEach(function (w) { if (txt.indexOf(w.slice(0, Math.max(4, w.length - 2))) >= 0) p++; });
+      if (p > pts) { pts = p; melhor = x; }
+    });
+    if (melhor) { achou = melhor; msg = 'Preenchido pelo tema parecido "' + melhor.fazer + '". Confira e ajuste se precisar.'; }
+    else msg = 'Atividade nova: preencha os itens abaixo. Ela fica salva no banco para as próximas vezes.';
+  }
+  if (achou) {
+    ['riscos', 'evitar', 'compromissos'].forEach(function (k) {
+      TEMA[k] = achou[k];
+      const el = document.getElementById('t_' + k); if (el) el.value = achou[k];
+    });
+    if (!msg) msg = '✔ Tema do banco preenchido.';
+  }
+  const a = document.getElementById('tAviso');
+  if (a && msg) a.textContent = msg;
+}
+// null = sem tema (o servidor repete o último); false = tema incompleto
+function temaParaEnviar() {
+  const t = TEMA || {};
+  if (!String(t.fazer || '').trim()) return null;
+  if (!String(t.riscos || '').trim() || !String(t.evitar || '').trim() || !String(t.compromissos || '').trim()) {
+    aviso('Preencha os itens 2.2, 2.3 e 2.4 do tema.'); return false;
+  }
+  return { fazer: t.fazer.trim(), riscos: t.riscos.trim(), evitar: t.evitar.trim(), compromissos: t.compromissos.trim() };
+}
+function temaGuardado(t) {
+  if (t && E.temas && !E.temas.some(function (x) { return semAcento(x.fazer) === semAcento(t.fazer); })) E.temas.push(t);
+  esquecer(['apiListaDDS', 'apiPainel']);
+}
+async function salvarTema(btn) {
+  const t = temaParaEnviar();
+  if (t === null) return aviso('Escreva primeiro o item 2.1 "O que vamos fazer?".');
+  if (!t) return;
   btn.disabled = true; carregando(true);
-  try { aviso(await run('apiGerarDDS')); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
+  try { aviso(await run('apiSalvarTemaDDS', t), 7000); temaGuardado(t); } catch (e) { falha(e); }
+  carregando(false); btn.disabled = false;
+}
+async function trocarTemaDDS(i, btn) {
+  const d = (E.ddsLista || [])[i], t = temaParaEnviar();
+  if (!d) return;
+  if (t === null) return aviso('Escreva o tema no quadro acima e toque de novo em "Usar tema".');
+  if (!t) return;
+  if (!confirm('Trocar o tema do DDS de ' + d.data + ' por:\n"' + t.fazer + '"?\n\nO PDF será refeito com o mesmo número.')) return;
+  btn.disabled = true; carregando(true);
+  try { aviso(await run('apiAplicarTemaDDS', d.codigo, t), 7000); temaGuardado(t); carregando(false); verDDS(); }
+  catch (e) { falha(e); btn.disabled = false; }
+}
+
+async function gerarDDS(btn) {
+  const t = temaParaEnviar(); if (t === false) return;
+  btn.disabled = true; carregando(true);
+  try { aviso(await run('apiGerarDDS', t)); temaGuardado(t); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
 }
 async function gerarSemana(btn) {
+  const t = temaParaEnviar(); if (t === false) return;
   btn.disabled = true; carregando(true);
-  try { aviso(await run('apiGerarSemanaDDS'), 9000); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
+  try { aviso(await run('apiGerarSemanaDDS', t), 9000); temaGuardado(t); verInicio(); } catch (e) { falha(e); btn.disabled = false; }
 }
 
 /* ---------- DDS ---------- */
 function verDDS() {
-marcar('dds', verDDS);
+  marcar('dds', verDDS);
   cabec('DDS', 'Diálogo Diário de Segurança');
+  carregarTemas();
   return carregarTela('apiListaDDS', [], function (l) {
-    let h = '<div class="grade2"><button onclick="gerarDDS(this)">Gerar próximo</button><button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
+    E.ddsLista = l;
+    let h = cartaoTema();
+    h += '<div class="grade2"><button onclick="gerarDDS(this)">Gerar próximo</button><button class="sec" onclick="gerarSemana(this)">Gerar semana</button></div>';
     h += '<h2>Últimos gerados</h2><div class="lista">';
     if (!l.length) h += '<div class="vazio">Nenhum DDS gerado ainda.</div>';
-    l.forEach(function (d) {
-      h += '<div class="item"><div class="info"><span class="t">' + esc(d.codigo) + '</span><span class="sub">' + esc(d.data) + ' · ' + esc(d.pessoas) + ' colaboradores</span></div>' +
-        '<button class="sec peq" onclick="abrirDoc(' + regDoc(d.url, d.codigo) + ')">Abrir</button></div>';
+    l.forEach(function (d, i) {
+      h += '<div class="item"><div class="info"><span class="t">' + esc(d.codigo) + '</span><span class="sub">' + esc(d.data) + ' · ' + esc(d.pessoas) + ' colaboradores' +
+        (d.tema ? '<br>Tema: ' + esc(d.tema) : '') + '</span></div>' +
+        '<div style="display:flex;flex-direction:column;gap:6px"><button class="sec peq" onclick="abrirDoc(' + regDoc(d.url, d.codigo) + ')">Abrir</button>' +
+        '<button class="sec peq" onclick="trocarTemaDDS(' + i + ', this)">Usar tema</button></div></div>';
     });
     tela(h + '</div>');
   });
+}
+
+/* ---------- FOTO EM TELA CHEIA ---------- */
+async function ampliarFoto(id) {
+  let o = document.getElementById('fotoGrande');
+  if (!o) {
+    o = document.createElement('div');
+    o.id = 'fotoGrande';
+    o.style.cssText = 'position:fixed;inset:0;z-index:999;background:rgba(0,0,0,.92);display:flex;align-items:center;justify-content:center;padding:8px';
+    o.onclick = fecharFoto;
+    document.body.appendChild(o);
+  }
+  o.dataset.id = id;
+  o.innerHTML = '<span style="color:#fff;font-size:15px">Carregando foto…</span>' +
+    '<button onclick="fecharFoto()" style="position:absolute;top:calc(env(safe-area-inset-top, 0px) + 12px);right:12px;width:auto;padding:8px 14px">✕ Fechar</button>';
+  o.style.display = 'flex';
+  try {
+    const src = await run('apiFotoGrande', id);
+    if (o.dataset.id !== id || o.style.display === 'none') return;
+    const s = o.querySelector('span');
+    if (s) s.outerHTML = '<img src="' + src + '" alt="Foto ampliada" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">';
+  } catch (e) { fecharFoto(); falha(e); }
+}
+function fecharFoto() {
+  const o = document.getElementById('fotoGrande');
+  if (o) { o.style.display = 'none'; o.innerHTML = ''; o.dataset.id = ''; }
+}
+window.addEventListener('popstate', fecharFoto);
+
+/* ---------- FOTOS DO VEÍCULO (ver e excluir) ---------- */
+function chaveFotosVeic(v, k) { return E.veic.mes + '|' + v.placa + '|' + k; }
+function gradeFotosVeic(v, k) {
+  const fs = (E.vfotos || {})[chaveFotosVeic(v, k)];
+  if (!fs) return '<div class="sub" style="padding:2px 0 6px">Carregando fotos…</div>';
+  if (!fs.length) return '<div class="sub">Nenhuma foto nesta parte.</div>';
+  let h = '<div class="grade2">';
+  fs.forEach(function (f, j) {
+    h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (j + 1) + '" onclick="ampliarFoto(\'' + f.id + '\')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
+        : '<div onclick="ampliarFoto(\'' + f.id + '\')" style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
+      '<div style="padding:8px;display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="ampliarFoto(\'' + f.id + '\')">Ver</button>' +
+      '<button class="sec peq" style="flex:1" onclick="excluirFotoVeic(' + k + ', ' + j + ')">Excluir</button></div></div>';
+  });
+  return h + '</div>';
+}
+function redesenharVeic() { const y = window.scrollY; verVeiculo(E.vi); window.scrollTo(0, y); }
+async function verFotosSecao(k) {
+  const v = E.veic.veiculos[E.vi];
+  if (E.vsec === k) { E.vsec = null; return redesenharVeic(); }
+  E.vsec = k; E.vfotos = E.vfotos || {};
+  const ch = chaveFotosVeic(v, k);
+  redesenharVeic();
+  if (E.vfotos[ch]) return;
+  try {
+    E.vfotos[ch] = await run('apiVeicFotos', E.veic.mes, v.placa, k);
+    if (E.vsec === k && E.veic.veiculos[E.vi] === v) redesenharVeic();
+  } catch (e) { E.vsec = null; falha(e); redesenharVeic(); }
+}
+async function excluirFotoVeic(k, j) {
+  const v = E.veic.veiculos[E.vi], ch = chaveFotosVeic(v, k), f = (E.vfotos[ch] || [])[j];
+  if (!f || !confirm('Excluir a foto ' + (j + 1) + '? Ela vai para a lixeira do Drive.')) return;
+  carregando(true);
+  try {
+    await run('apiVeicExcluirFoto', f.id);
+    E.vfotos[ch].splice(j, 1);
+    v.fotos[k] = E.vfotos[ch].length;
+    if (!v.fotos[k]) E.vsec = null;
+    esquecer(['apiVeiculos', 'apiPainel']);
+    carregando(false);
+    aviso('✔ Foto excluída' + (v.gerado ? '. Gere o relatório de novo para atualizar o PDF.' : '.'), v.gerado ? 8000 : 4000);
+    redesenharVeic();
+  } catch (e) { falha(e); }
 }
 
 /* ---------- VEÍCULOS ---------- */
@@ -573,6 +741,7 @@ function verVeiculo(i) {
 marcar('veiculo', function () { verVeiculo(i); });
   TOK++;
   const r = E.veic, v = r.veiculos[i];
+  if (E.vi !== i) E.vsec = null;
   E.vi = i;
   const un = v.medicao === 'HORÍMETRO' ? 'h' : 'km';
   cabec(v.tipo + ' · ' + v.placa, v.marca + ' · ' + v.operador);
@@ -580,8 +749,11 @@ marcar('veiculo', function () { verVeiculo(i); });
   h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">FOTOS · ' + esc(r.mes) + '</span>';
   r.secoes.forEach(function (s, k) {
     h += '<div class="secao"><div class="n' + (v.fotos[k] ? ' tem' : '') + '">' + v.fotos[k] + '</div>' +
-      '<div class="info" style="flex:1"><span class="t">' + esc(s) + '</span></div>' +
+      '<div class="info" style="flex:1"><span class="t">' + esc(s) + '</span><span class="sub">' + v.fotos[k] + ' de ' + FOTOS_POR_PARTE + ' fotos' +
+      (v.fotos[k] > FOTOS_POR_PARTE ? ' · <b style="color:var(--vermelho, #c62828)">exclua ' + (v.fotos[k] - FOTOS_POR_PARTE) + '</b>' : '') + '</span></div>' +
+      (v.fotos[k] ? '<button class="sec peq" onclick="verFotosSecao(' + k + ')">' + (E.vsec === k ? 'Fechar' : 'Ver') + '</button>' : '') +
       '<button class="sec peq" onclick="escolherFotos(' + k + ')">+ Fotos</button></div>';
+    if (E.vsec === k && v.fotos[k]) h += gradeFotosVeic(v, k);
   });
   if (v.pastaUrl) h += '<a href="' + esc(v.pastaUrl) + '" target="_blank" class="sub">Abrir a pasta no Drive</a>';
   h += '</section>';
@@ -599,7 +771,10 @@ marcar('veiculo', function () { verVeiculo(i); });
   tela(h);
 }
 
+const FOTOS_POR_PARTE = 4;   // o relatório do veículo tem 4 fotos em cada parte
 function escolherFotos(k) {
+  const v = E.veic.veiculos[E.vi];
+  if ((v.fotos[k] || 0) >= FOTOS_POR_PARTE) return aviso('Esta parte já tem ' + v.fotos[k] + ' fotos (limite ' + FOTOS_POR_PARTE + '). Toque em Ver e exclua uma para trocar.', 7000);
   E.secao = k;
   const inp = $('arquivo'); inp.value = '';
   inp.onchange = function () { enviarFotos(Array.prototype.slice.call(inp.files)); };
@@ -646,6 +821,8 @@ function emPacotes(lista, n) {
 async function enviarFotos(files) {
   if (!files.length) return;
   const v = E.veic.veiculos[E.vi], mes = E.veic.mes, secao = E.secao;
+  const livre = FOTOS_POR_PARTE - (v.fotos[secao] || 0);
+  if (files.length > livre) return aviso('Esta parte aceita só mais ' + livre + ' foto(s) (limite ' + FOTOS_POR_PARTE + ' por parte). Escolha de novo.', 7000);
   files.sort(function (a, b) { return (a.lastModified || 0) - (b.lastModified || 0); });
   const itens = files.map(function (f, i) { return { f: f, i: i }; });
   let feitos = 0;
@@ -663,6 +840,7 @@ async function enviarFotos(files) {
       aviso('Enviando fotos: ' + feitos + ' de ' + files.length + '…', 120000);
     });
     v.fotos[secao] = (v.fotos[secao] || 0) + files.length;
+    if (E.vfotos) delete E.vfotos[chaveFotosVeic(v, secao)];
     esquecer(['apiVeiculos', 'apiPainel']);
     aviso('✔ ' + files.length + ' foto(s) enviada(s)');
     verVeiculo(E.vi);
@@ -891,7 +1069,7 @@ function desenharCasa() {
   h += '<div class="grade2">';
   d.fotos.forEach(function (f, i) {
     h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
-      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg)">'
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" onclick="ampliarFoto(\'' + f.id + '\')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
                : '<div style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
       '<div style="padding:8px;display:flex;flex-direction:column;gap:6px"><span class="sub"><b>Foto ' + String(i + 1).padStart(2, '0') + '</b> · ' + esc(f.legenda || 'sem legenda') + '</span>' +
       '<div style="display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="trocarLegenda(' + i + ')">Legenda</button>' +
