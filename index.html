@@ -521,39 +521,51 @@ marcar('inicio', verInicio);
   });
 }
 
-/* ---------- TEMA DO DDS (itens 2.1 a 2.4) ---------- */
-let TEMA = null;   // tema em edição: { fazer, riscos, evitar, compromissos }
+/* ---------- TEMAS DO DDS (até 4, um por linha do quadro 2) ---------- */
+const MAX_TEMAS = 4;
+let TEMAS = null;   // [{ fazer, riscos, evitar, compromissos }] em edição
 function semAcento(s) { return String(s || '').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g, ''); }
 async function carregarTemas() {
   if (E.temas) return;
   try {
     const r = await run('apiTemasDDS');
     E.temas = r.temas || [];
-    if (!TEMA && r.ultimo) TEMA = r.ultimo;
-    const c = document.getElementById('cartaoTema');
-    if (c) c.outerHTML = cartaoTema();
+    if (!TEMAS && r.ultimo) TEMAS = Array.isArray(r.ultimo) ? r.ultimo : [r.ultimo];
+    redesenharTemas();
   } catch (e) { }
 }
+function redesenharTemas() { const c = document.getElementById('cartaoTema'); if (c) c.outerHTML = cartaoTema(); }
 function cartaoTema() {
-  const t = TEMA || {};
-  const campo = function (chave, rotulo) {
-    return '<label class="sub" for="t_' + chave + '"><b>' + rotulo + '</b></label>' +
-      '<textarea id="t_' + chave + '" rows="3" style="font:inherit;font-size:15px;line-height:1.4;padding:10px 12px;border:1px solid var(--linha);border-radius:12px;resize:vertical;width:100%;box-sizing:border-box" oninput="temaCampo(\'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
-  };
-  return '<section class="card" id="cartaoTema" style="display:flex;flex-direction:column;gap:8px"><span class="rotulo">TEMA DO DDS</span>' +
-    '<label class="sub" for="t_fazer"><b>2.1 O que vamos fazer?</b></label>' +
-    '<input id="t_fazer" list="listaTemas" autocomplete="off" placeholder="Escreva ou escolha a atividade de hoje" value="' + esc(t.fazer || '') + '" oninput="temaFazer(this.value, false)" onchange="temaFazer(this.value, true)">' +
-    '<datalist id="listaTemas">' + (E.temas || []).map(function (x) { return '<option value="' + esc(x.fazer) + '">'; }).join('') + '</datalist>' +
-    '<span id="tAviso" class="sub">' + (E.temas ? (t.fazer ? 'Sem escolher outro, os próximos DDS repetem este tema.' : 'Escolha a atividade e os outros itens vêm preenchidos.') : 'Carregando temas…') + '</span>' +
-    campo('riscos', '2.2 Onde podemos nos machucar nesse trabalho') +
-    campo('evitar', '2.3 Como podemos evitar o machucado') +
-    campo('compromissos', '2.4 Quais são os nossos compromissos?') +
-    '<button class="sec" onclick="salvarTema(this)">Salvar tema para o DDS automático</button></section>';
+  if (!TEMAS || !TEMAS.length) TEMAS = [{}];
+  const estilo = 'font:inherit;font-size:15px;line-height:1.4;padding:10px 12px;border:1px solid var(--linha);border-radius:12px;resize:vertical;width:100%;box-sizing:border-box';
+  let h = '<section class="card" id="cartaoTema" style="display:flex;flex-direction:column;gap:8px"><span class="rotulo">TEMAS DO DDS · ATÉ ' + MAX_TEMAS + '</span>' +
+    '<span class="sub">Valem para o próximo DDS. Se ele já foi gerado (ex.: às 17h), os temas são colocados nele e o PDF é refeito.' +
+    (E.temas ? '' : ' Carregando temas…') + '</span>' +
+    '<datalist id="listaTemas">' + (E.temas || []).map(function (x) { return '<option value="' + esc(x.fazer) + '">'; }).join('') + '</datalist>';
+  TEMAS.forEach(function (t, i) {
+    const campo = function (chave, rotulo) {
+      return '<label class="sub" for="t' + i + '_' + chave + '"><b>' + rotulo + '</b></label>' +
+        '<textarea id="t' + i + '_' + chave + '" rows="3" style="' + estilo + '" oninput="temaCampo(' + i + ', \'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
+    };
+    h += '<div style="border:1px solid var(--linha);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px">' +
+      '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b>Tema ' + (i + 1) + '</b>' +
+      (TEMAS.length > 1 ? '<button class="sec peq" onclick="removerTema(' + i + ')">Remover</button>' : '') + '</div>' +
+      '<label class="sub" for="t' + i + '_fazer"><b>2.1 O que vamos fazer?</b></label>' +
+      '<input id="t' + i + '_fazer" list="listaTemas" autocomplete="off" placeholder="Escreva ou escolha a atividade" value="' + esc(t.fazer || '') + '" oninput="temaFazer(' + i + ', this.value, false)" onchange="temaFazer(' + i + ', this.value, true)">' +
+      '<span id="t' + i + '_aviso" class="sub"></span>' +
+      campo('riscos', '2.2 Onde podemos nos machucar nesse trabalho') +
+      campo('evitar', '2.3 Como podemos evitar o machucado') +
+      campo('compromissos', '2.4 Quais são os nossos compromissos?') + '</div>';
+  });
+  if (TEMAS.length < MAX_TEMAS) h += '<button class="sec" onclick="adicionarTema()">+ Adicionar tema (' + TEMAS.length + ' de ' + MAX_TEMAS + ')</button>';
+  return h + '<button class="sec" onclick="salvarTema(this)">Salvar temas para o DDS automático</button></section>';
 }
-function temaCampo(chave, valor) { TEMA = TEMA || {}; TEMA[chave] = valor; }
-function temaFazer(v, fim) {
-  TEMA = TEMA || {};
-  TEMA.fazer = v;
+function adicionarTema() { if (TEMAS.length < MAX_TEMAS) { TEMAS.push({}); redesenharTemas(); const el = document.getElementById('t' + (TEMAS.length - 1) + '_fazer'); if (el) el.focus(); } }
+function removerTema(i) { TEMAS.splice(i, 1); redesenharTemas(); }
+function temaCampo(i, chave, valor) { TEMAS[i] = TEMAS[i] || {}; TEMAS[i][chave] = valor; }
+function temaFazer(i, v, fim) {
+  const T = TEMAS[i] = TEMAS[i] || {};
+  T.fazer = v;
   const lista = E.temas || [], alvo = semAcento(v).trim();
   let achou = lista.filter(function (x) { return semAcento(x.fazer).trim() === alvo; })[0], msg = '';
   if (!achou && fim && alvo) {
@@ -570,25 +582,30 @@ function temaFazer(v, fim) {
   }
   if (achou) {
     ['riscos', 'evitar', 'compromissos'].forEach(function (k) {
-      TEMA[k] = achou[k];
-      const el = document.getElementById('t_' + k); if (el) el.value = achou[k];
+      T[k] = achou[k];
+      const el = document.getElementById('t' + i + '_' + k); if (el) el.value = achou[k];
     });
     if (!msg) msg = '✔ Tema do banco preenchido.';
   }
-  const a = document.getElementById('tAviso');
+  const a = document.getElementById('t' + i + '_aviso');
   if (a && msg) a.textContent = msg;
 }
-// null = sem tema (o servidor repete o último); false = tema incompleto
+// null = nenhum tema escrito (o servidor repete os últimos); false = tema incompleto
 function temaParaEnviar() {
-  const t = TEMA || {};
-  if (!String(t.fazer || '').trim()) return null;
-  if (!String(t.riscos || '').trim() || !String(t.evitar || '').trim() || !String(t.compromissos || '').trim()) {
-    aviso('Preencha os itens 2.2, 2.3 e 2.4 do tema.'); return false;
+  const lista = (TEMAS || []).filter(function (t) { return String(t.fazer || '').trim(); });
+  if (!lista.length) return null;
+  for (let i = 0; i < lista.length; i++) {
+    const t = lista[i];
+    if (!String(t.riscos || '').trim() || !String(t.evitar || '').trim() || !String(t.compromissos || '').trim()) {
+      aviso('Complete os itens 2.2, 2.3 e 2.4 do tema "' + t.fazer + '".'); return false;
+    }
   }
-  return { fazer: t.fazer.trim(), riscos: t.riscos.trim(), evitar: t.evitar.trim(), compromissos: t.compromissos.trim() };
+  return lista.map(function (t) { return { fazer: t.fazer.trim(), riscos: t.riscos.trim(), evitar: t.evitar.trim(), compromissos: t.compromissos.trim() }; });
 }
-function temaGuardado(t) {
-  if (t && E.temas && !E.temas.some(function (x) { return semAcento(x.fazer) === semAcento(t.fazer); })) E.temas.push(t);
+function temaGuardado(lista) {
+  (lista || []).forEach(function (t) {
+    if (E.temas && !E.temas.some(function (x) { return semAcento(x.fazer) === semAcento(t.fazer); })) E.temas.push(t);
+  });
   esquecer(['apiListaDDS', 'apiPainel']);
 }
 async function salvarTema(btn) {
@@ -596,17 +613,17 @@ async function salvarTema(btn) {
   if (t === null) return aviso('Escreva primeiro o item 2.1 "O que vamos fazer?".');
   if (!t) return;
   btn.disabled = true; carregando(true);
-  try { aviso(await run('apiSalvarTemaDDS', t), 7000); temaGuardado(t); } catch (e) { falha(e); }
+  try { aviso(await run('apiSalvarTemaDDS', t), 8000); temaGuardado(t); } catch (e) { falha(e); }
   carregando(false); btn.disabled = false;
 }
 async function trocarTemaDDS(i, btn) {
   const d = (E.ddsLista || [])[i], t = temaParaEnviar();
   if (!d) return;
-  if (t === null) return aviso('Escreva o tema no quadro acima e toque de novo em "Usar tema".');
+  if (t === null) return aviso('Escreva os temas no quadro acima e toque de novo em "Usar temas".');
   if (!t) return;
-  if (!confirm('Trocar o tema do DDS de ' + d.data + ' por:\n"' + t.fazer + '"?\n\nO PDF será refeito com o mesmo número.')) return;
+  if (!confirm('Colocar no DDS de ' + d.data + ' os temas:\n' + t.map(function (x, k) { return (k + 1) + '. ' + x.fazer; }).join('\n') + '\n\nO PDF será refeito com o mesmo número.')) return;
   btn.disabled = true; carregando(true);
-  try { aviso(await run('apiAplicarTemaDDS', d.codigo, t), 7000); temaGuardado(t); carregando(false); verDDS(); }
+  try { aviso(await run('apiAplicarTemaDDS', d.codigo, t), 8000); temaGuardado(t); carregando(false); verDDS(); }
   catch (e) { falha(e); btn.disabled = false; }
 }
 
@@ -634,9 +651,9 @@ function verDDS() {
     if (!l.length) h += '<div class="vazio">Nenhum DDS gerado ainda.</div>';
     l.forEach(function (d, i) {
       h += '<div class="item"><div class="info"><span class="t">' + esc(d.codigo) + '</span><span class="sub">' + esc(d.data) + ' · ' + esc(d.pessoas) + ' colaboradores' +
-        (d.tema ? '<br>Tema: ' + esc(d.tema) : '') + '</span></div>' +
+        (d.tema ? '<br>Temas: ' + esc(d.tema) : '') + '</span></div>' +
         '<div style="display:flex;flex-direction:column;gap:6px"><button class="sec peq" onclick="abrirDoc(' + regDoc(d.url, d.codigo) + ')">Abrir</button>' +
-        '<button class="sec peq" onclick="trocarTemaDDS(' + i + ', this)">Usar tema</button></div></div>';
+        '<button class="sec peq" onclick="trocarTemaDDS(' + i + ', this)">Usar temas</button></div></div>';
     });
     tela(h + '</div>');
   });
