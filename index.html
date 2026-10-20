@@ -538,7 +538,7 @@ function cartaoTema() {
   const t = TEMA || {};
   const campo = function (chave, rotulo) {
     return '<label class="sub" for="t_' + chave + '"><b>' + rotulo + '</b></label>' +
-      '<textarea id="t_' + chave + '" rows="3" oninput="temaCampo(\'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
+      '<textarea id="t_' + chave + '" rows="3" style="font:inherit;font-size:15px;line-height:1.4;padding:10px 12px;border:1px solid var(--linha);border-radius:12px;resize:vertical;width:100%;box-sizing:border-box" oninput="temaCampo(\'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
   };
   return '<section class="card" id="cartaoTema" style="display:flex;flex-direction:column;gap:8px"><span class="rotulo">TEMA DO DDS</span>' +
     '<label class="sub" for="t_fazer"><b>2.1 O que vamos fazer?</b></label>' +
@@ -749,7 +749,7 @@ marcar('veiculo', function () { verVeiculo(i); });
   h += '<section class="card" style="display:flex;flex-direction:column;gap:10px"><span class="rotulo">FOTOS · ' + esc(r.mes) + '</span>';
   r.secoes.forEach(function (s, k) {
     h += '<div class="secao"><div class="n' + (v.fotos[k] ? ' tem' : '') + '">' + v.fotos[k] + '</div>' +
-      '<div class="info" style="flex:1"><span class="t">' + esc(s) + '</span><span class="sub">' + v.fotos[k] + ' de ' + FOTOS_POR_PARTE + ' fotos' +
+      '<div class="info" style="flex:1;display:flex;flex-direction:column"><span class="t">' + esc(s) + '</span><span class="sub">' + v.fotos[k] + ' de ' + FOTOS_POR_PARTE + ' fotos' +
       (v.fotos[k] > FOTOS_POR_PARTE ? ' · <b style="color:var(--vermelho, #c62828)">exclua ' + (v.fotos[k] - FOTOS_POR_PARTE) + '</b>' : '') + '</span></div>' +
       (v.fotos[k] ? '<button class="sec peq" onclick="verFotosSecao(' + k + ')">' + (E.vsec === k ? 'Fechar' : 'Ver') + '</button>' : '') +
       '<button class="sec peq" onclick="escolherFotos(' + k + ')">+ Fotos</button></div>';
