@@ -378,17 +378,17 @@ async function abrirDoc(i) {
   f.onclick = function (e) { if (e.target === f) fecharFolha(); };
   f.innerHTML = '<div class="caixa" role="dialog" aria-label="Documento">' +
     '<b style="font-size:16px">' + esc(d.nome) + '</b>' +
-    '<span class="sub" id="fstatus">Preparando o PDF…</span>' +
+    '<span class="sub" id="fstatus">Preparando o arquivo…</span>' +
     '<button id="fcomp" disabled onclick="compartilharDoc(' + i + ')">Compartilhar (WhatsApp, e-mail…)</button>' +
     '<button id="fbaixar" class="sec" disabled onclick="baixarDoc(' + i + ')">Baixar / Imprimir</button>' +
-    (String(d.url).indexOf('form:') === 0 ? '' : '<button class="sec" onclick="emailDoc(' + i + ', this)">Enviar por e-mail (cadastrados no ⚙)</button>') +
+    (/^(form|caso):/.test(String(d.url)) ? '' : '<button class="sec" onclick="emailDoc(' + i + ', this)">Enviar por e-mail (cadastrados no ⚙)</button>') +
     '<button class="sec" onclick="fecharFolha()">Fechar</button></div>';
   document.body.appendChild(f);
   try {
     if (!PDFS[d.url]) {
       const ehForm = String(d.url).indexOf('form:') === 0;
       let r = null;
-      try { r = ehForm ? await run('apiFormularioPdf', d.url.slice(5)) : await run('apiPdfDocumento', d.url); }
+      try { r = d.url === 'caso:' ? await run('apiControleASO') : ehForm ? await run('apiFormularioPdf', d.url.slice(5)) : await run('apiPdfDocumento', d.url); }
       catch (e) {
         const g = ehForm ? await formLer(d.url.slice(5)) : null;   // sem internet: cópia guardada no celular
         if (!g) throw e;
@@ -397,12 +397,12 @@ async function abrirDoc(i) {
       if (r) {
         const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
         for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-        PDFS[d.url] = new File([bytes], r.nome, { type: 'application/pdf' });
+        PDFS[d.url] = new File([bytes], r.nome, { type: r.mime || 'application/pdf' });
         if (ehForm) formGuardar(d.url.slice(5), PDFS[d.url]);
       }
     }
     if (!$('folha')) return;
-    $('fstatus').textContent = (d.offline ? 'Sem internet: cópia de ' + d.offline + ' · ' : 'PDF pronto · ') + Math.max(1, Math.round(PDFS[d.url].size / 1024)) + ' KB';
+    $('fstatus').textContent = (d.offline ? 'Sem internet: cópia de ' + d.offline + ' · ' : (d.url === 'caso:' ? 'Planilha pronta: ' + PDFS[d.url].name + ' · ' : 'PDF pronto · ')) + Math.max(1, Math.round(PDFS[d.url].size / 1024)) + ' KB';
     $('fcomp').disabled = false; $('fbaixar').disabled = false;
   } catch (e) {
     if ($('fstatus')) $('fstatus').textContent = '⚠ ' + (e.message || e);
@@ -911,6 +911,12 @@ async function gerarVeiculos(btn) {
 }
 
 /* ---------- EQUIPE ---------- */
+// Controle de ASO e treinamentos: gera de novo a cada toque (dados sempre atuais)
+function gerarControleASO() {
+  delete PDFS['caso:'];
+  abrirDoc(regDoc('caso:', 'Controle de ASO e Treinamentos'));
+}
+
 function verEquipe() {
 marcar('equipe', verEquipe);
   return carregarTela('apiColaboradores', [], function (l) { E.colab = l; desenharEquipe(''); });
@@ -922,7 +928,8 @@ function desenharEquipe(filtro) {
   cabec('Equipe', ativos + ' ativos · ' + (lista.length - ativos) + ' desligados');
   const f = filtro.toUpperCase();
   let h = '<section class="card" style="display:flex;flex-direction:column;gap:10px">' +
-    '<div class="campo"><label for="busca">Buscar</label><input id="busca" placeholder="Nome ou função" value="' + esc(filtro) + '" oninput="desenharEquipe(this.value)"></div></section>';
+    '<div class="campo"><label for="busca">Buscar</label><input id="busca" placeholder="Nome ou função" value="' + esc(filtro) + '" oninput="desenharEquipe(this.value)"></div>' +
+    '<button onclick="gerarControleASO()">Gerar controle de ASO e treinamentos (XLSX)</button></section>';
   h += '<div class="lista">';
   lista.filter(function (c) { return !f || c.nome.indexOf(f) >= 0 || c.funcao.toUpperCase().indexOf(f) >= 0; })
     .forEach(function (c) {
