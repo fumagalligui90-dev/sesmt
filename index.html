@@ -381,18 +381,28 @@ async function abrirDoc(i) {
     '<span class="sub" id="fstatus">Preparando o PDF…</span>' +
     '<button id="fcomp" disabled onclick="compartilharDoc(' + i + ')">Compartilhar (WhatsApp, e-mail…)</button>' +
     '<button id="fbaixar" class="sec" disabled onclick="baixarDoc(' + i + ')">Baixar / Imprimir</button>' +
-    '<button class="sec" onclick="emailDoc(' + i + ', this)">Enviar por e-mail (cadastrados no ⚙)</button>' +
+    (String(d.url).indexOf('form:') === 0 ? '' : '<button class="sec" onclick="emailDoc(' + i + ', this)">Enviar por e-mail (cadastrados no ⚙)</button>') +
     '<button class="sec" onclick="fecharFolha()">Fechar</button></div>';
   document.body.appendChild(f);
   try {
     if (!PDFS[d.url]) {
-      const r = await run('apiPdfDocumento', d.url);
-      const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
-      for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
-      PDFS[d.url] = new File([bytes], r.nome, { type: 'application/pdf' });
+      const ehForm = String(d.url).indexOf('form:') === 0;
+      let r = null;
+      try { r = ehForm ? await run('apiFormularioPdf', d.url.slice(5)) : await run('apiPdfDocumento', d.url); }
+      catch (e) {
+        const g = ehForm ? await formLer(d.url.slice(5)) : null;   // sem internet: cópia guardada no celular
+        if (!g) throw e;
+        PDFS[d.url] = g.file; d.offline = g.quando;
+      }
+      if (r) {
+        const bin = atob(r.base64), bytes = new Uint8Array(bin.length);
+        for (let k = 0; k < bin.length; k++) bytes[k] = bin.charCodeAt(k);
+        PDFS[d.url] = new File([bytes], r.nome, { type: 'application/pdf' });
+        if (ehForm) formGuardar(d.url.slice(5), PDFS[d.url]);
+      }
     }
     if (!$('folha')) return;
-    $('fstatus').textContent = 'PDF pronto (' + Math.max(1, Math.round(PDFS[d.url].size / 1024)) + ' KB).';
+    $('fstatus').textContent = (d.offline ? 'Sem internet: cópia de ' + d.offline + ' · ' : 'PDF pronto · ') + Math.max(1, Math.round(PDFS[d.url].size / 1024)) + ' KB';
     $('fcomp').disabled = false; $('fbaixar').disabled = false;
   } catch (e) {
     if ($('fstatus')) $('fstatus').textContent = '⚠ ' + (e.message || e);
@@ -471,7 +481,7 @@ async function limparTudo() {
 
 function ir(aba, extra) {
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('ativo', b.dataset.aba === aba); });
-  ({ inicio: verInicio, dds: verDDS, veiculos: verVeiculos, equipe: verEquipe, fadiga: verFadiga, aloj: verAloj, config: verConfig, agenda: verAgenda })[aba](extra);
+  ({ inicio: verInicio, dds: verDDS, veiculos: verVeiculos, equipe: verEquipe, fadiga: verFadiga, aloj: verAloj, forms: verFormularios, config: verConfig, agenda: verAgenda })[aba](extra);
 }
 
 /* ---------- INÍCIO ---------- */
@@ -516,6 +526,7 @@ marcar('inicio', verInicio);
       '<button class="acao" onclick="ir(\'dds\')"><b>Histórico de DDS</b><span class="sub">Abrir os últimos</span></button>' +
       '<button class="acao" onclick="ir(\'fadiga\')"><b>Controle de fadiga</b><span class="sub">' + (p.fadiga && p.fadiga.pronta ? 'Pronta p/ ' + esc(p.fadiga.data) : 'Gerar fichas do dia') + '</span></button>' +
       '<button class="acao" onclick="ir(\'aloj\')"><b>Alojamentos</b><span class="sub">Casas, fotos e relatório NR-24</span></button>' +
+      '<button class="acao" onclick="ir(\'forms\')"><b>Formulários</b><span class="sub">Checklists e etiquetas para imprimir (A4)</span></button>' +
       '</div>';
     tela(h);
   });
@@ -960,6 +971,76 @@ async function novoColab(btn) {
 }
 
 /* ---------- FADIGA ---------- */
+/* ---------- Formulários padrão (pasta 04_FORMULARIOS_PADRAO) ---------- */
+function verFormularios() {
+  marcar('forms', verFormularios);
+  cabec('Formulários', 'Para imprimir em A4 · data e obra já preenchidas');
+  return carregarTela('apiFormularios', [], function (lista) {
+    let h = '<div>';
+    if (!lista.length) h += '<div class="vazio">Nenhum formulário na pasta 04_FORMULARIOS_PADRAO do Drive.</div>';
+    lista.forEach(function (f) {
+      const sub = f.foto ? 'Com a foto do colaborador designado' : (f.tipo === 'pdf' ? 'PDF pronto' : 'Data de emissão e obra preenchidas na hora');
+      h += '<div class="item"><div class="info"><span class="t">' + esc(f.nome) + '</span><span class="sub">' + esc(sub) + '</span></div>' +
+        '<div style="display:flex;gap:6px;flex-shrink:0">' +
+        (f.foto ? '<button class="sec peq" onclick="trocarFotoForm(\'' + f.id + '\')">Trocar foto</button>' : '') +
+        '<button class="peq" onclick="abrirDoc(' + regDoc('form:' + f.id, f.nome) + ')">Baixar</button></div></div>';
+    });
+    h += '<p class="sub" style="margin-top:12px">Para incluir outro formulário, coloque o arquivo (Excel, PDF ou Planilha) na pasta 04_FORMULARIOS_PADRAO do Drive.</p>';
+    tela(h + '</div>');
+  });
+}
+
+function trocarFotoForm(id) {
+  const inp = document.createElement('input');
+  inp.type = 'file'; inp.accept = 'image/*';
+  inp.style.display = 'none';
+  document.body.appendChild(inp);
+  inp.onchange = async function () {
+    const file = inp.files && inp.files[0];
+    inp.remove();
+    if (!file) return;
+    carregando(true);
+    try {
+      const r = await reduzir(file, 1100, 0.8);
+      await run('apiFormularioTrocarFoto', id, r.foto);
+      delete PDFS['form:' + id];
+      formApagar(id);
+      aviso('✓ Foto trocada. O próximo PDF já sai com a foto nova.');
+    } catch (e) { falha(e); }
+    finally { carregando(false); }
+  };
+  inp.click();
+}
+
+// Cópia do último PDF de cada formulário no celular (para abrir sem internet)
+function formBanco() {
+  return new Promise(function (ok, erro) {
+    const q = indexedDB.open('sesmt_forms', 1);
+    q.onupgradeneeded = function () { q.result.createObjectStore('pdf', { keyPath: 'id' }); };
+    q.onsuccess = function () { ok(q.result); };
+    q.onerror = function () { erro(q.error); };
+  });
+}
+async function formGuardar(id, file) {
+  try {
+    const db = await formBanco();
+    db.transaction('pdf', 'readwrite').objectStore('pdf').put({ id: id, nome: file.name, blob: file, quando: new Date().toLocaleDateString('pt-BR') });
+  } catch (e) { }
+}
+async function formLer(id) {
+  try {
+    const db = await formBanco();
+    const x = await new Promise(function (ok) {
+      const q = db.transaction('pdf').objectStore('pdf').get(id);
+      q.onsuccess = function () { ok(q.result); }; q.onerror = function () { ok(null); };
+    });
+    return x ? { file: new File([x.blob], x.nome, { type: 'application/pdf' }), quando: x.quando } : null;
+  } catch (e) { return null; }
+}
+async function formApagar(id) {
+  try { const db = await formBanco(); db.transaction('pdf', 'readwrite').objectStore('pdf').delete(id); } catch (e) { }
+}
+
 function verFadiga() {
 marcar('fadiga', verFadiga);
   cabec('Controle de fadiga', 'Escolha quem vai dirigir');
