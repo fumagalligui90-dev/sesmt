@@ -794,13 +794,12 @@ marcar('veiculo', function () { verVeiculo(i); });
     '<div><div class="sub">Saldo do mês</div><b style="font-size:20px">' + (l && l.saldo != null ? num(l.saldo) + ' ' + un : '—') + '</b></div></div>' +
     '<div class="campo"><label for="leit">Leitura atual do painel</label>' +
     '<input id="leit" inputmode="numeric" placeholder="Só números" value="' + (l ? esc(l.atual) : '') + '"></div>' +
-    '<div class="campo"><label for="vmarca">Marca</label><input id="vmarca" autocapitalize="characters" value="' + esc(v.marca || '') + '"></div>' +
-    '<div class="campo"><label for="vmodelo">Modelo</label><input id="vmodelo" autocapitalize="characters" value="' + esc(v.modelo || '') + '"></div>' +
     '<div class="campo"><label for="voper">Operador</label><input id="voper" autocapitalize="characters" value="' + esc(v.operador || '') + '"></div>' +
     '<button onclick="salvarLeitura(this)">' + (v.gerado ? 'Salvar e atualizar relatório' : 'Salvar') + '</button>' +
     (v.gerado ? '<span class="sub">O relatório ' + esc(v.gerado.codigo) + ' é corrigido no mesmo arquivo: mesmo número e mesmas fotos.</span>' : '') + '</section>';
 
-  if (v.gerado) h += '<button onclick="abrirDoc(' + regDoc(v.gerado.url, v.gerado.codigo + ' ' + v.tipo + ' ' + v.placa) + ')">Abrir relatório ' + esc(v.gerado.codigo) + '</button>';
+  if (v.gerado) h += '<button onclick="abrirDoc(' + regDoc(v.gerado.url, v.gerado.codigo + ' ' + v.tipo + ' ' + v.placa) + ')">Abrir relatório ' + esc(v.gerado.codigo) + '</button>' +
+    '<button class="sec" onclick="regerarVeiculo(this)">Gerar novamente (fotos e dados atuais)</button>';
   else h += '<button onclick="gerarUmVeiculo(this)">Gerar relatório deste veículo</button>';
   tela(h);
 }
@@ -879,16 +878,35 @@ async function enviarFotos(files) {
 
 async function salvarLeitura(btn) {
   const i = E.vi, v = E.veic.veiculos[i];
-  const d = { atual: $('leit').value, marca: $('vmarca').value, modelo: $('vmodelo').value, operador: $('voper').value };
+  const d = { atual: $('leit').value, operador: $('voper').value };   // marca e modelo: só nas Configurações
   btn.disabled = true; carregando(true);
   if (v.gerado) aviso('Salvando e corrigindo o relatório…', 60000);
   try {
     const r = await run('apiEditarVeiculo', E.veic.mes, v.placa, d);
     if (r.km) v.leitura = r.km;
-    ['marca', 'modelo', 'operador'].forEach(function (c) { const x = String(d[c] || '').trim().toUpperCase(); if (x) v[c] = x; });
+    ['operador'].forEach(function (c) { const x = String(d[c] || '').trim().toUpperCase(); if (x) v[c] = x; });
     if (v.gerado) delete PDFS[v.gerado.url];
     esquecer(['apiVeiculos', 'apiPainel', 'apiChecklistMes', 'apiAgenda']);
     aviso((r.atualizado ? '✔ Salvo e relatório ' + r.codigo + ' atualizado' : '✔ Salvo') + (r.avisos && r.avisos.length ? ' · ' + r.avisos.join(' ') : ''), 8000);
+    if (E.vi === i && E.veic.veiculos[i] === v) verVeiculo(i);
+  } catch (e) { falha(e); btn.disabled = false; }
+  carregando(false);
+}
+
+/* Refaz o relatório já pronto com as fotos e dados atuais (mesmo número; o antigo vai para a lixeira) */
+async function regerarVeiculo(btn) {
+  const i = E.vi, v = E.veic.veiculos[i], mes = E.veic.mes;
+  if (!v.gerado) return;
+  if (!confirm('Gerar de novo o relatório ' + v.gerado.codigo + ' de ' + v.tipo + ' ' + v.placa + ' com as fotos e dados atuais? O número continua o mesmo e o arquivo antigo vai para a lixeira.')) return;
+  const antigo = v.gerado.url;
+  btn.disabled = true; carregando(true);
+  aviso('Gerando de novo o relatório de ' + v.tipo + ' ' + v.placa + '… pode levar até 5 minutos, não feche o app.', 360000);
+  try {
+    const r = await run('apiRegerarVeiculo', mes, v.placa);
+    delete PDFS[antigo];
+    v.gerado = r.gerado || null;
+    esquecer(['apiVeiculos', 'apiPainel', 'apiChecklistMes', 'apiAgenda', 'apiDesempenho']);
+    aviso(r.mensagem, 10000);
     if (E.vi === i && E.veic.veiculos[i] === v) verVeiculo(i);
   } catch (e) { falha(e); btn.disabled = false; }
   carregando(false);
