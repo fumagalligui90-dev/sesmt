@@ -794,7 +794,11 @@ marcar('veiculo', function () { verVeiculo(i); });
     '<div><div class="sub">Saldo do mês</div><b style="font-size:20px">' + (l && l.saldo != null ? num(l.saldo) + ' ' + un : '—') + '</b></div></div>' +
     '<div class="campo"><label for="leit">Leitura atual do painel</label>' +
     '<input id="leit" inputmode="numeric" placeholder="Só números" value="' + (l ? esc(l.atual) : '') + '"></div>' +
-    '<button onclick="salvarLeitura(this)">Salvar leitura</button></section>';
+    '<div class="campo"><label for="vmarca">Marca</label><input id="vmarca" autocapitalize="characters" value="' + esc(v.marca || '') + '"></div>' +
+    '<div class="campo"><label for="vmodelo">Modelo</label><input id="vmodelo" autocapitalize="characters" value="' + esc(v.modelo || '') + '"></div>' +
+    '<div class="campo"><label for="voper">Operador</label><input id="voper" autocapitalize="characters" value="' + esc(v.operador || '') + '"></div>' +
+    '<button onclick="salvarLeitura(this)">' + (v.gerado ? 'Salvar e atualizar relatório' : 'Salvar') + '</button>' +
+    (v.gerado ? '<span class="sub">O relatório ' + esc(v.gerado.codigo) + ' é corrigido no mesmo arquivo: mesmo número e mesmas fotos.</span>' : '') + '</section>';
 
   if (v.gerado) h += '<button onclick="abrirDoc(' + regDoc(v.gerado.url, v.gerado.codigo + ' ' + v.tipo + ' ' + v.placa) + ')">Abrir relatório ' + esc(v.gerado.codigo) + '</button>';
   else h += '<button onclick="gerarUmVeiculo(this)">Gerar relatório deste veículo</button>';
@@ -874,12 +878,18 @@ async function enviarFotos(files) {
 
 
 async function salvarLeitura(btn) {
-  const v = E.veic.veiculos[E.vi];
+  const i = E.vi, v = E.veic.veiculos[i];
+  const d = { atual: $('leit').value, marca: $('vmarca').value, modelo: $('vmodelo').value, operador: $('voper').value };
   btn.disabled = true; carregando(true);
+  if (v.gerado) aviso('Salvando e corrigindo o relatório…', 60000);
   try {
-    v.leitura = await run('apiSalvarLeitura', E.veic.mes, v.placa, $('leit').value);
-    aviso('✔ Leitura salva');
-    verVeiculo(E.vi);
+    const r = await run('apiEditarVeiculo', E.veic.mes, v.placa, d);
+    if (r.km) v.leitura = r.km;
+    ['marca', 'modelo', 'operador'].forEach(function (c) { const x = String(d[c] || '').trim().toUpperCase(); if (x) v[c] = x; });
+    if (v.gerado) delete PDFS[v.gerado.url];
+    esquecer(['apiVeiculos', 'apiPainel', 'apiChecklistMes', 'apiAgenda']);
+    aviso((r.atualizado ? '✔ Salvo e relatório ' + r.codigo + ' atualizado' : '✔ Salvo') + (r.avisos && r.avisos.length ? ' · ' + r.avisos.join(' ') : ''), 8000);
+    if (E.vi === i && E.veic.veiculos[i] === v) verVeiculo(i);
   } catch (e) { falha(e); btn.disabled = false; }
   carregando(false);
 }
