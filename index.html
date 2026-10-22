@@ -1036,7 +1036,10 @@ const EPI_CSS = '.epi-res{display:grid;grid-template-columns:repeat(2,1fr);gap:1
   '.epi-hist{font-size:13px;border-top:1px solid var(--linha);padding:9px 2px;display:flex;justify-content:space-between;gap:10px}' +
   '.epi-sec{margin-top:8px;padding:10px 12px;border-radius:10px;background:var(--cinza-bg);color:var(--cinza);font-weight:600;font-size:13px}' +
   '.epi-chk{display:flex;gap:10px;align-items:center;font-size:14px}.epi-chk input{width:22px;height:22px;flex-shrink:0}' +
-  '#folha .caixa{max-height:90vh;overflow-y:auto}';
+  '#folha .caixa{max-height:90vh;overflow-y:auto}' +
+  '.epi-chipsW{display:flex;align-items:center;gap:6px}.epi-chipsW .epi-chips{flex:1;min-width:0;cursor:grab}' +
+  '.epi-chips.arrastando{cursor:grabbing;user-select:none}.epi-chips.arrastando .epi-chip{pointer-events:none}' +
+  '.epi-seta{flex:0 0 40px;width:40px;height:40px;min-height:40px;margin:0 0 6px;padding:0;border-radius:50%;border:1px solid var(--borda);background:var(--card);color:var(--texto);font-size:22px;line-height:1}';
 function epiCss() {
   if ($('epi-css')) return;
   const s = document.createElement('style'); s.id = 'epi-css'; s.textContent = EPI_CSS; document.head.appendChild(s);
@@ -1084,13 +1087,39 @@ function desenharEpi() {
     '<span class="sub">' + (d.ultimo ? 'Último gerado: ' + esc(d.ultimo.codigo) : 'Modelo Grantel · um número por mês') + '</span>' +
     '<button class="sec" onclick="formEpi()">+ Cadastrar EPI</button></section>';
   h += '<input class="epi-busca" type="search" placeholder="Buscar EPI, tamanho ou C.A" value="' + esc(f.q) + '" oninput="E.epiF.q=this.value;listaEpi()">';
-  h += '<div class="epi-chips">' + [-1, -2].concat(d.cats.map(function (c, i) { return i; })).map(function (i) {
+  h += '<div class="epi-chipsW"><button class="epi-seta" onclick="epiRolar(-1)" aria-label="Categorias anteriores">‹</button><div class="epi-chips" id="epiChips">' + [-1, -2].concat(d.cats.map(function (c, i) { return i; })).map(function (i) {
     const c = i === -1 ? '' : i === -2 ? 'alertas' : d.cats[i];
     const nome = i === -1 ? 'Todos' : i === -2 ? '⚠ Alertas' : c;
     return '<button class="epi-chip' + (f.cat === c ? ' on' : '') + '" onclick="epiCat(' + i + ')">' + esc(nome) + '</button>';
-  }).join('') + '</div><div id="epiLista"></div>';
+  }).join('') + '</div><button class="epi-seta" onclick="epiRolar(1)" aria-label="Próximas categorias">›</button></div><div id="epiLista"></div>';
   tela(h);
   listaEpi();
+  epiChipsArrastar();
+}
+function epiRolar(d) { const c = $('epiChips'); if (c) c.scrollBy({ left: d * Math.max(160, c.clientWidth * 0.7), behavior: 'smooth' }); }
+// No computador: arrastar com o mouse e rolar com a rodinha; a posição fica guardada ao trocar de categoria
+function epiChipsArrastar() {
+  const c = $('epiChips');
+  if (!c) return;
+  if (E.epiScroll) c.scrollLeft = E.epiScroll;
+  c.addEventListener('scroll', function () { E.epiScroll = c.scrollLeft; });
+  c.addEventListener('wheel', function (e) {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) { c.scrollLeft += e.deltaY; e.preventDefault(); }
+  }, { passive: false });
+  let x0 = 0, s0 = 0, ativo = false, arrastou = false;
+  c.addEventListener('pointerdown', function (e) {
+    if (e.pointerType !== 'mouse' || e.button !== 0) return;
+    ativo = true; arrastou = false; x0 = e.clientX; s0 = c.scrollLeft;
+  });
+  c.addEventListener('pointermove', function (e) {
+    if (!ativo) return;
+    const dx = e.clientX - x0;
+    if (!arrastou && Math.abs(dx) > 6) { arrastou = true; c.classList.add('arrastando'); try { c.setPointerCapture(e.pointerId); } catch (er) { } }
+    if (arrastou) c.scrollLeft = s0 - dx;
+  });
+  const fim = function () { if (!ativo) return; ativo = false; setTimeout(function () { c.classList.remove('arrastando'); }, 0); };
+  c.addEventListener('pointerup', fim);
+  c.addEventListener('pointercancel', fim);
 }
 function epiCat(i) { E.epiF.cat = i === -1 ? '' : i === -2 ? 'alertas' : E.epi.cats[i]; desenharEpi(); }
 function listaEpi() {
