@@ -1,0 +1,100 @@
+name: Base oficial de C.A (MTE)
+
+# Baixa todo dia a base CAEPI do Ministério do Trabalho (atualizada às 20h)
+# e publica um arquivo leve (caepi.csv) na release "caepi" deste repositório.
+# O app SESMT lê esse arquivo para conferir validade e situação dos C.A.
+on:
+  schedule:
+    - cron: '30 0 * * *'   # 21h30 de Brasília
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  baixar:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - name: Baixar a base CAEPI (FTP do MTE)
+        run: |
+          set -e
+          BASE="ftp://ftp.mtps.gov.br/portal/fiscalizacao/seguranca-e-saude-no-trabalho/caepi"
+          curl -sS --retry 3 --retry-delay 30 --max-time 300 -l "$BASE/" > ftp_lista.dat || true
+          echo "--- arquivos no FTP ---"; cat ftp_lista.dat || true
+          ARQ=$(grep -i -m1 'tgg_export_caepi' ftp_lista.dat | tr -d '\r' || true)
+          [ -z "$ARQ" ] && ARQ="tgg_export_caepi.zip"
+          echo "Baixando $ARQ"
+          curl -sS --retry 3 --retry-delay 30 --max-time 1200 -o "base_$ARQ" "$BASE/$ARQ"
+          ls -la
+          if echo "$ARQ" | grep -qi '\.zip$'; then
+            mkdir -p base && unzip -o -q "base_$ARQ" -d base
+            TXT=$(find base -type f | head -1)
+          else
+            TXT="base_$ARQ"
+          fi
+          echo "TXT=$TXT" >> "$GITHUB_ENV"
+
+      - name: Gerar caepi.csv (CA;validade;situacao;equipamento)
+        run: |
+          python3 - <<'PY'
+          import os, re, datetime
+          raw = open(os.environ['TXT'], 'rb').read()
+          try:
+              s = raw.decode('utf-8')
+          except UnicodeDecodeError:
+              s = raw.decode('latin-1')
+          linhas = s.splitlines()
+          cab = [c.strip().upper() for c in linhas[0].split('|')]
+          print('Cabeçalho:', cab)
+          def col(*partes):
+              for i, c in enumerate(cab):
+                  if all(p in c for p in partes):
+                      return i
+              return None
+          iCa = col('REGISTRO')
+          if iCa is None: iCa = col('CA')
+          iVal, iSit, iNome = col('VALIDADE'), col('SITUA'), col('NOME', 'EQUIPAMENTO')
+          print('Colunas -> CA', iCa, '| validade', iVal, '| situação', iSit, '| equipamento', iNome)
+          def data(v):
+              v = (v or '').strip()
+              m = re.match(r'(\d{2})/(\d{2})/(\d{4})', v)
+              if m: return datetime.date(int(m.group(3)), int(m.group(2)), int(m.group(1)))
+              m = re.match(r'(\d{4})-(\d{2})-(\d{2})', v)
+              if m: return datetime.date(int(m.group(1)), int(m.group(2)), int(m.group(3)))
+              return None
+          melhor = {}
+          for ln in linhas[1:]:
+              p = ln.split('|')
+              if len(p) <= max(iCa, iVal or 0, iSit or 0): continue
+              ca = re.sub(r'\D', '', p[iCa])
+              if not ca: continue
+              ca = str(int(ca))
+              d = data(p[iVal]) if iVal is not None else None
+              ant = melhor.get(ca)
+              if ant and ant[0] and d and d <= ant[0]: continue
+              if ant and ant[0] and not d: continue
+              sit = p[iSit].strip().upper() if iSit is not None else ''
+              nome = p[iNome].strip() if iNome is not None and iNome < len(p) else ''
+              melhor[ca] = (d, sit, ' '.join(nome.replace(';', ',').split())[:70])
+          print('C.A distintos:', len(melhor))
+          if len(melhor) < 50000:
+              raise SystemExit('Base parece incompleta: não vou publicar.')
+          agora = datetime.datetime.utcnow().strftime('%Y-%m-%dT%H:%MZ')
+          with open('caepi.csv', 'w', encoding='utf-8') as f:
+              f.write('#base CAEPI/MTE baixada em %s; %d C.A\n' % (agora, len(melhor)))
+              for ca in sorted(melhor, key=int):
+                  d, sit, nome = melhor[ca]
+                  f.write('%s;%s;%s;%s\n' % (ca, d.strftime('%d/%m/%Y') if d else '', sit, nome))
+          print(open('caepi.csv', encoding='utf-8').read()[:600])
+          PY
+          ls -la caepi.csv
+
+      - name: Publicar na release "caepi"
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view caepi --repo "$GITHUB_REPOSITORY" >/dev/null 2>&1 || \
+            gh release create caepi --repo "$GITHUB_REPOSITORY" --title "Base oficial de C.A (MTE)" \
+              --notes "Atualizada todo dia pelo robô (GitHub Actions) a partir do FTP do Ministério do Trabalho. Usada pelo app SESMT."
+          gh release upload caepi caepi.csv --clobber --repo "$GITHUB_REPOSITORY"
