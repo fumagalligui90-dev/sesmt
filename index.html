@@ -90,9 +90,9 @@
     text-decoration:none;color:var(--texto);box-shadow:0 2px 8px rgba(24,32,46,.08);border:none;text-align:left;min-height:auto;font-weight:400}
   .acao b{font-size:15px}
   nav{position:fixed;left:0;right:0;bottom:0;background:var(--card);border-top:1px solid var(--linha);
-    display:grid;grid-template-columns:repeat(5,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
+    display:grid;grid-template-columns:repeat(6,minmax(0,1fr));padding-bottom:env(safe-area-inset-bottom,0px);z-index:5}
   nav button{background:var(--card);border:none;color:var(--suave);border-radius:0;flex-direction:column;gap:3px;
-    font-size:12px;font-weight:500;min-height:64px}
+    font-size:11px;font-weight:500;min-height:64px;padding:0 2px}
   nav button.ativo{color:var(--link);font-weight:700}
   .secao{display:flex;align-items:center;gap:12px;padding:10px;border:1px solid var(--linha);border-radius:12px}
   .secao .n{width:52px;height:52px;border-radius:10px;background:var(--cinza-bg);display:flex;align-items:center;
@@ -155,6 +155,8 @@ header.com-voltar{padding-left:70px}
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 17h14v-5l-2-5H7l-2 5z"/><circle cx="7.5" cy="17.5" r="1.5"/><circle cx="16.5" cy="17.5" r="1.5"/></svg>Veículos</button>
   <button data-aba="equipe" onclick="irAba('equipe')">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="8" r="4"/><path d="M4 21v-1a6 6 0 0 1 6-6h4a6 6 0 0 1 6 6v1"/></svg>Equipe</button>
+  <button data-aba="epi" onclick="irAba('epi')">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/><path d="m9 12 2 2 4-4"/></svg>EPI</button>
 </nav>
 
 <div id="carregando" class="escondido"><div class="giro" role="status" aria-label="Carregando"></div></div>
@@ -277,7 +279,7 @@ function etiquetaMes() {
 
 /* ---------- BOTÃO VOLTAR (seta no cabeçalho e voltar do celular) ---------- */
 const PILHA = []; // telas abertas, da primeira à atual
-const ABA_DA_TELA = { inicio: 'inicio', agenda: 'agenda', dds: 'dds', veiculos: 'veiculos', veiculo: 'veiculos', equipe: 'equipe' };
+const ABA_DA_TELA = { inicio: 'inicio', agenda: 'agenda', dds: 'dds', veiculos: 'veiculos', veiculo: 'veiculos', equipe: 'equipe', epi: 'epi' };
 function marcar(chave, fn, formulario) {
   const i = PILHA.findIndex(function (p) { return p.chave === chave; });
   if (i >= 0) { PILHA.length = i + 1; PILHA[i].fn = fn; }
