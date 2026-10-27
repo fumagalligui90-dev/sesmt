@@ -182,7 +182,7 @@ async function chamar(corpo, tentativa) {
 function run(fn) {
   const args = Array.prototype.slice.call(arguments, 1);
   return chamar({ token: token(), fn: fn, args: args }).then(function (res) {
-    if (res.ok) return res.r;
+    if (res.ok) { if (res.obra) guardarObra(res.obra); return res.r; }
     if (res.erro === 'SESSAO') { telaLogin(); throw new Error('Sua sessão terminou. Entre de novo.'); }
     throw new Error(res.erro || 'Erro no servidor');
   });
@@ -197,7 +197,7 @@ PILHA.length = 0; atualizarVoltar();
   cabec('Entrar', 'SESMT Grantel');
   carregando(false);
   tela('<section class="card" style="display:flex;flex-direction:column;gap:12px;max-width:420px;width:100%;align-self:center">' +
-    '<div class="campo"><label for="lu">Usuário</label><input id="lu" autocomplete="username" autocapitalize="none"></div>' +
+    '<div class="campo"><label for="lu">Usuário ou e-mail</label><input id="lu" autocomplete="username" autocapitalize="none"></div>' +
     '<div class="campo"><label for="ls">Senha</label><input id="ls" type="password" autocomplete="current-password" onkeydown="if(event.key===\'Enter\')entrar(this)"></div>' +
     '<button onclick="entrar(this)">Entrar</button>' +
     (msg ? '<span class="sub" style="color:var(--erro)">' + esc(msg) + '</span>' : '') + '</section>');
@@ -209,6 +209,7 @@ async function entrar(btn) {
     const r = await chamar({ acao: 'login', usuario: $('lu').value, senha: $('ls').value });
     if (!r.ok) { carregando(false); telaLogin(r.erro); return; }
     localStorage.setItem('sesmt_token', r.token);
+    guardarSessao(r);
     document.querySelector('nav').classList.remove('escondido');
     ir('inicio');
     setTimeout(preCarregar, 2500);
@@ -221,6 +222,144 @@ async function sair() {
   try { Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sesmt') === 0) localStorage.removeItem(k); }); } catch (e) { }
   telaLogin();
 }
+/* ---------- OBRAS: cada login vê só as obras liberadas para ele ---------- */
+function sessaoApp() { try { return JSON.parse(localStorage.getItem('sesmt_sessao') || '{}'); } catch (e) { return {}; } }
+function guardarSessao(r) {
+  const s = { nome: r.nome || '', perfil: r.perfil || '', obras: r.obras || sessaoApp().obras || [] };
+  try { localStorage.setItem('sesmt_sessao', JSON.stringify(s)); } catch (e) { }
+  if (r.obra) guardarObra(r.obra);
+}
+function obraApp() { try { return localStorage.getItem('sesmt_obra') || ''; } catch (e) { return ''; } }
+// Mudou a obra: as telas guardadas no celular eram da outra obra
+function guardarObra(o) {
+  o = String(o);
+  if (obraApp() === o) return;
+  try {
+    Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sesmt:') === 0) localStorage.removeItem(k); });
+    localStorage.setItem('sesmt_obra', o);
+  } catch (e) { }
+  Object.keys(E).forEach(function (k) { delete E[k]; });
+}
+function nomeObra(o) { const x = (sessaoApp().obras || []).filter(function (y) { return y.obra === o; })[0]; return x ? x.nome : o; }
+function ehAdmin() { return sessaoApp().perfil === 'admin'; }
+
+function verObras() {
+  marcar('obras', verObras);
+  TOK++;
+  cabec('Trocar de obra', 'Agora: ' + nomeObra(obraApp()));
+  const lista = sessaoApp().obras || [];
+  tela('<div class="lista">' + lista.map(function (o) {
+    const atual = o.obra === obraApp();
+    return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px"' +
+      (atual ? ' disabled' : ' onclick="trocarObra(\'' + esc(o.obra) + '\', this)"') + '>' +
+      '<div class="info"><span class="t">' + esc(o.nome) + '</span><span class="sub">Obra ' + esc(o.obra) + '</span></div>' +
+      (atual ? '<span class="chip ok">Atual</span>' : '<span aria-hidden="true">›</span>') + '</button>';
+  }).join('') + '</div>' +
+    (ehAdmin() ? '<button class="sec" onclick="cfgObras()">Cadastrar ou renomear obras</button>' : ''));
+}
+
+async function trocarObra(o, btn) {
+  if (FILA.itens.length) return aviso('Espere as fotos da fila terminarem de enviar antes de trocar de obra. Elas são da obra atual.', 7000);
+  btn.disabled = true; carregando(true);
+  try {
+    const r = await chamar({ acao: 'obra', token: token(), obra: o });
+    if (!r.ok) { if (r.erro === 'SESSAO') return telaLogin('Sua sessão terminou. Entre de novo.'); throw new Error(r.erro); }
+    guardarSessao({ obra: r.obra, obras: r.obras, nome: sessaoApp().nome, perfil: sessaoApp().perfil });
+    carregando(false);
+    aviso('✔ Agora na obra ' + nomeObra(r.obra), 3000);
+    irAba('inicio');
+    setTimeout(preCarregar, 2500);
+  } catch (e) { btn.disabled = false; falha(e); }
+}
+
+/* Administrador: logins e obras */
+const PERFIS = { admin: 'Administrador (tudo, todas as obras)', tecnico: 'Técnico (cadastra e gera documentos)', consulta: 'Consulta (só vê)' };
+function cfgUsuarios() {
+  marcar('usuarios', cfgUsuarios);
+  cabec('Usuários e acessos', 'Quem entra no app e em quais obras');
+  return carregarTela('apiUsuarios', [], function (us) {
+    E.usuarios = us;
+    tela('<button onclick="formUsuario(-1)">Novo usuário</button><div class="lista">' + us.map(function (u, i) {
+      return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="formUsuario(' + i + ')">' +
+        '<div class="info"><span class="t">' + esc(u.nome || u.login) + '</span><span class="sub">' + esc(u.login) + ' · ' + esc((PERFIS[u.perfil] || u.perfil).split(' (')[0]) +
+        ' · ' + esc(u.perfil === 'admin' ? 'todas as obras' : (u.obras.join(', ') || 'nenhuma obra')) + (u.ultimo ? ' · último acesso ' + esc(u.ultimo) : '') + '</span></div>' +
+        (u.ativo ? '<span aria-hidden="true">›</span>' : '<span class="chip cinza">Bloqueado</span>') + '</button>';
+    }).join('') + '</div>');
+  });
+}
+async function formUsuario(i) {
+  const u = i >= 0 ? E.usuarios[i] : { login: '', nome: '', email: '', perfil: 'tecnico', obras: [obraApp()], ativo: true };
+  marcar('usuario', function () { formUsuario(i); }, true);
+  cabec(i >= 0 ? (u.nome || u.login) : 'Novo usuário', 'Usuários e acessos');
+  let obras = sessaoApp().obras || [];
+  try { obras = await run('apiObras'); } catch (e) { }
+  tela('<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+    '<div class="campo"><label for="unome">Nome</label><input id="unome" value="' + esc(u.nome) + '"></div>' +
+    '<div class="campo"><label for="ulogin">Usuário (para entrar)</label><input id="ulogin" autocapitalize="none" value="' + esc(u.login) + '"></div>' +
+    '<div class="campo"><label for="uemail">E-mail (também serve para entrar)</label><input id="uemail" type="email" autocapitalize="none" value="' + esc(u.email) + '"></div>' +
+    '<div class="campo"><label for="uperfil">Perfil</label><select id="uperfil">' + Object.keys(PERFIS).map(function (k) {
+      return '<option value="' + k + '"' + (k === u.perfil ? ' selected' : '') + '>' + esc(PERFIS[k]) + '</option>'; }).join('') + '</select></div>' +
+    '<div class="campo"><span class="rotulo">Obras liberadas (o administrador vê todas)</span>' + obras.map(function (o) {
+      return '<label class="item" style="cursor:pointer"><input type="checkbox" class="uobra" value="' + esc(o.obra) + '"' + (u.obras.indexOf(o.obra) >= 0 ? ' checked' : '') +
+        ' style="width:24px;height:24px;min-height:auto;flex-shrink:0"><div class="info"><span class="t">' + esc(o.nome) + '</span><span class="sub">Obra ' + esc(o.obra) + '</span></div></label>';
+    }).join('') + '</div>' +
+    '<div class="campo"><label for="usenha">' + (i >= 0 ? 'Nova senha (deixe em branco para manter)' : 'Senha (mínimo 8 caracteres)') + '</label>' +
+    '<input id="usenha" type="password" autocomplete="new-password"></div>' +
+    (i >= 0 ? '<label class="item" style="cursor:pointer"><input id="uativo" type="checkbox"' + (u.ativo ? ' checked' : '') +
+      ' style="width:24px;height:24px;min-height:auto;flex-shrink:0"><div class="info"><span class="t">Pode entrar no app</span><span class="sub">Desmarque para bloquear este login</span></div></label>' : '') +
+    '<button onclick="salvarUsuario(' + i + ', this)">Salvar</button></section>');
+}
+async function salvarUsuario(i, btn) {
+  const d = { id: i >= 0 ? E.usuarios[i].id : 0, nome: $('unome').value, login: $('ulogin').value, email: $('uemail').value, perfil: $('uperfil').value,
+              obras: Array.prototype.map.call(document.querySelectorAll('.uobra:checked'), function (x) { return x.value; }),
+              senha: $('usenha').value, ativo: i >= 0 ? $('uativo').checked : true };
+  if (d.perfil !== 'admin' && !d.obras.length) return aviso('Marque pelo menos uma obra.');
+  btn.disabled = true; carregando(true);
+  try {
+    E.usuarios = await run('apiUsuarioSalvar', d);
+    esquecer(['apiUsuarios']);
+    carregando(false); aviso('✔ Usuário salvo.', 2500);
+    voltar();
+  } catch (e) { btn.disabled = false; falha(e); }
+}
+function cfgObras() {
+  marcar('cobras', cfgObras);
+  cabec('Obras', 'Cada obra tem os seus cadastros e as suas pastas');
+  return carregarTela('apiObras', [], function (os) {
+    E.obrasCad = os;
+    tela('<button onclick="formObra(-1)">Nova obra</button><div class="lista">' + os.map(function (o, i) {
+      return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="formObra(' + i + ')">' +
+        '<div class="info"><span class="t">' + esc(o.nome) + '</span><span class="sub">Obra ' + esc(o.obra) + '</span></div>' +
+        (o.ativa ? '<span aria-hidden="true">›</span>' : '<span class="chip cinza">Encerrada</span>') + '</button>';
+    }).join('') + '</div>');
+  });
+}
+function formObra(i) {
+  const o = i >= 0 ? E.obrasCad[i] : { obra: '', nome: '', ativa: true };
+  marcar('obra', function () { formObra(i); }, true);
+  cabec(i >= 0 ? o.nome : 'Nova obra', 'Obras');
+  tela('<section class="card" style="display:flex;flex-direction:column;gap:12px">' +
+    '<div class="campo"><label for="ocod">Código da obra</label><input id="ocod" value="' + esc(o.obra) + '"' + (i >= 0 ? ' disabled' : '') + ' placeholder="Ex.: 260"></div>' +
+    '<div class="campo"><label for="onome">Nome da obra</label><input id="onome" value="' + esc(o.nome) + '" placeholder="Ex.: SE 260 - IMPERATRIZ"></div>' +
+    (i >= 0 ? '<label class="item" style="cursor:pointer"><input id="oativa" type="checkbox"' + (o.ativa ? ' checked' : '') +
+      ' style="width:24px;height:24px;min-height:auto;flex-shrink:0"><div class="info"><span class="t">Obra em andamento</span><span class="sub">Desmarque quando a obra terminar (some da lista de quem entra)</span></div></label>'
+      : '<span class="sub">A obra nova começa com os parâmetros, o checklist, os temas de DDS e o calendário da obra atual (' + esc(nomeObra(obraApp())) +
+        '), com a numeração dos documentos voltando para 1. Colaboradores, veículos e EPIs começam vazios. As pastas do Drive dela são criadas sozinhas.</span>') +
+    '<button onclick="salvarObra(' + i + ', this)">Salvar</button></section>');
+}
+async function salvarObra(i, btn) {
+  const d = { obra: i >= 0 ? E.obrasCad[i].obra : $('ocod').value, nome: $('onome').value, ativa: i >= 0 ? $('oativa').checked : true };
+  btn.disabled = true; carregando(true);
+  try {
+    E.obrasCad = await run('apiObraSalvar', d);
+    esquecer(['apiObras']);
+    const s = await run('apiSessao');
+    guardarSessao({ obras: s.obras, nome: s.nome, perfil: s.perfil });
+    carregando(false); aviso('✔ Obra salva.', 2500);
+    voltar();
+  } catch (e) { btn.disabled = false; falha(e); }
+}
+
 const E = {};  // estado
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(n) { return n == null || n === '' ? '—' : Number(n).toLocaleString('pt-BR'); }
@@ -1641,7 +1780,10 @@ function verConfig() {
 marcar('config', verConfig);
   TOK++;
   cabec('Configurações', 'Altere os dados sem abrir a planilha');
+  const ses = sessaoApp();
   const op = [
+    ['verObras()', 'Obra: ' + esc(nomeObra(obraApp())), (ses.obras || []).length > 1 ? 'Toque para trocar de obra' : 'Você entra só nesta obra'],
+  ].concat(ses.perfil === 'admin' ? [['cfgUsuarios()', 'Usuários e acessos', 'Logins, perfis e obras de cada pessoa'], ['cfgObras()', 'Obras', 'Cadastrar uma obra nova ou encerrar uma obra']] : []).concat([
     ['cfgParametros()', 'Parâmetros gerais', 'Obra, números dos documentos, responsáveis, e-mail, PDF'],
     ['cfgTabela(\'colaboradores\')', 'Colaboradores', 'Nome, função, ASO e treinamentos, DDS e fadiga'],
     ['cfgTabela(\'veiculos\')', 'Veículos', 'Frota, placas, operadores, km ou horímetro'],
@@ -1649,14 +1791,14 @@ marcar('config', verConfig);
     ['cfgTabela(\'docs\')', 'Itens do checklist', 'Documentos do checklist mensal e da agenda'],
     ['ir(\'aloj\')', 'Alojamentos', 'Nome e dados de cada casa (toque na casa → Dados da casa)'],
     ['escolherTema()', 'Tema (claro / escuro)', 'Atual: ' + nomeTema()],
-    ['limparTudo()', 'Atualizar dados agora', 'Use se você mudou algo direto na planilha']
-  ];
+    ['limparTudo()', 'Atualizar dados agora', 'Busca de novo os dados do servidor']
+  ]);
   tela('<div class="lista">' + op.map(function (o) {
     return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px" onclick="' + o[0] + '">' +
       '<div class="info"><span class="t">' + o[1] + '</span><span class="sub">' + o[2] + '</span></div><span aria-hidden="true">›</span></button>';
   }).join('') + '</div>' +
     '<div class="lista"><button class="item" style="width:100%;background:var(--card);border:none;border-radius:0;color:var(--erro);text-align:left;min-height:68px" onclick="sair()">' +
-    '<div class="info"><span class="t" style="color:var(--erro)">Sair do app</span><span class="sub">Desconecta este aparelho (vai pedir a senha de novo)</span></div>' +
+    '<div class="info"><span class="t" style="color:var(--erro)">Sair do app</span><span class="sub">' + (ses.nome ? esc(ses.nome) + ' · ' : '') + 'Desconecta este aparelho (vai pedir a senha de novo)</span></div>' +
     '<span aria-hidden="true" style="color:var(--erro)">›</span></button></div>');
 }
 
