@@ -131,7 +131,7 @@ header.com-voltar{padding-left:70px}
 <body>
 
 <header style="position:relative">
-  <button onclick="ir('config')" aria-label="Configurações" style="position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
+  <button id="bconfig" onclick="ir('config')" aria-label="Configurações" style="position:absolute;right:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
   </button>
   <button id="bvoltar" class="escondido" onclick="voltar()" aria-label="Voltar" style="position:absolute;left:14px;top:calc(12px + env(safe-area-inset-top,0px));width:44px;height:44px;min-height:44px;padding:0;border-radius:22px;background:rgba(255,255,255,.12);border:1px solid rgba(255,255,255,.35)">
@@ -191,8 +191,13 @@ function run(fn) {
 /* ---------- LOGIN ---------- */
 function telaLogin(msg) {
   TOK++;
-  try { localStorage.removeItem('sesmt_token'); } catch (e) { }
+  // Sem login: apaga o token e os dados guardados no aparelho, e esconde o menu e as Configurações
+  try {
+    localStorage.removeItem('sesmt_token'); localStorage.removeItem('sesmt_sessao');
+    Object.keys(localStorage).forEach(function (k) { if (k.indexOf('sesmt:') === 0) localStorage.removeItem(k); });
+  } catch (e) { }
   document.querySelector('nav').classList.add('escondido');
+  document.getElementById('bconfig').classList.add('escondido');
 PILHA.length = 0; atualizarVoltar();
   cabec('Entrar', 'SESMT Grantel');
   carregando(false);
@@ -211,6 +216,7 @@ async function entrar(btn) {
     localStorage.setItem('sesmt_token', r.token);
     guardarSessao(r);
     document.querySelector('nav').classList.remove('escondido');
+    document.getElementById('bconfig').classList.remove('escondido');
     ir('inicio');
     setTimeout(preCarregar, 2500);
   } catch (e) { carregando(false); telaLogin(e.message); }
@@ -621,6 +627,7 @@ async function limparTudo() {
 }
 
 function ir(aba, extra) {
+  if (!token()) return telaLogin();
   document.querySelectorAll('nav button').forEach(function (b) { b.classList.toggle('ativo', b.dataset.aba === aba); });
   ({ inicio: verInicio, dds: verDDS, veiculos: verVeiculos, equipe: verEquipe, fadiga: verFadiga, aloj: verAloj, forms: verFormularios, epi: verEpi, config: verConfig, agenda: verAgenda })[aba](extra);
 }
