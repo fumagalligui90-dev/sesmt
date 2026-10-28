@@ -1,7 +1,7 @@
 /* SESMT Grantel - deixa o app abrir sem internet.
    Tela do app: tenta a internet primeiro (até 4 s); sem sinal, usa a cópia guardada no celular.
    Os dados (Apps Script) não passam por aqui. */
-const CACHE = 'sesmt-v1';
+const CACHE = 'sesmt-v2';
 const ARQUIVOS = ['./', './index.html', './manifest.json', './icone.svg'];
 
 self.addEventListener('install', function (e) {
