@@ -5,6 +5,8 @@
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#FFFFFF">
 <meta name="robots" content="noindex, nofollow">
+<meta name="referrer" content="no-referrer">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data: blob:; connect-src 'self' https://script.google.com https://script.googleusercontent.com https://fonts.googleapis.com https://fonts.gstatic.com; worker-src 'self'; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
 <title>SESMT Grantel</title>
 <link rel="manifest" href="manifest.json">
 <script>
@@ -276,7 +278,7 @@ function verObras() {
   tela('<div class="lista">' + lista.map(function (o) {
     const atual = o.obra === obraApp();
     return '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:68px"' +
-      (atual ? ' disabled' : ' onclick="trocarObra(\'' + esc(o.obra) + '\', this)"') + '>' +
+      (atual ? ' disabled' : ' onclick="trocarObra(' + jsArg(o.obra) + ', this)"') + '>' +
       '<div class="info"><span class="t">' + esc(o.nome) + '</span><span class="sub">Obra ' + esc(o.obra) + '</span></div>' +
       (atual ? '<span class="chip ok">Atual</span>' : '<span aria-hidden="true">›</span>') + '</button>';
   }).join('') + '</div>' +
@@ -372,6 +374,33 @@ function formObra(i) {
         '), com a numeração dos documentos voltando para 1. Colaboradores, veículos e EPIs começam vazios. As pastas do Drive dela são criadas sozinhas.</span>') +
     '<button onclick="salvarObra(' + i + ', this)">Salvar</button></section>');
 }
+/* Senha: cada pessoa troca a sua */
+function cfgMinhaSenha() {
+  marcar('senha', cfgMinhaSenha, true);
+  cabec('Trocar minha senha', sessaoApp().nome || '');
+  tela('<section class="card" style="display:flex;flex-direction:column;gap:12px;max-width:420px;width:100%;align-self:center">' +
+    '<div class="campo"><label for="sat">Senha atual</label><input id="sat" type="password" autocomplete="current-password"></div>' +
+    '<div class="campo"><label for="snv">Nova senha (mínimo 8 caracteres)</label><input id="snv" type="password" autocomplete="new-password"></div>' +
+    '<div class="campo"><label for="snv2">Repita a nova senha</label><input id="snv2" type="password" autocomplete="new-password"></div>' +
+    '<button onclick="salvarMinhaSenha(this)">Trocar senha</button></section>');
+}
+async function salvarMinhaSenha(btn) {
+  if ($('snv').value.length < 8) return aviso('A nova senha precisa ter pelo menos 8 caracteres.');
+  if ($('snv').value !== $('snv2').value) return aviso('As duas senhas novas não são iguais.');
+  btn.disabled = true; carregando(true);
+  try {
+    const msg = await run('apiTrocarMinhaSenha', $('sat').value, $('snv').value);
+    carregando(false); aviso(msg, 5000);
+    voltar();
+  } catch (e) { btn.disabled = false; falha(e); }
+}
+async function desconectarTodos() {
+  if (!confirm('Desconectar todos os aparelhos? Todo mundo (menos você neste aparelho) vai precisar entrar de novo com usuário e senha.')) return;
+  carregando(true);
+  try { const msg = await run('apiDesconectarTodos'); carregando(false); aviso(msg, 5000); }
+  catch (e) { falha(e); }
+}
+
 async function salvarObra(i, btn) {
   const d = { obra: i >= 0 ? E.obrasCad[i].obra : $('ocod').value, nome: $('onome').value, ativa: i >= 0 ? $('oativa').checked : true };
   btn.disabled = true; carregando(true);
@@ -386,6 +415,10 @@ async function salvarObra(i, btn) {
 }
 
 const E = {};  // estado
+// Texto dentro de onclick="...": vira string de JavaScript (com aspas) e depois HTML, sem como fechar a aspa
+function jsArg(s) { return esc(JSON.stringify(String(s == null ? '' : s))); }
+// Só deixa abrir links http(s) (nada de javascript:)
+function urlSegura(u) { u = String(u || '').trim(); return /^https?:\/\//i.test(u) ? u : ''; }
 function esc(s) { return String(s == null ? '' : s).replace(/[&<>"']/g, function (c) { return {'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]; }); }
 function num(n) { return n == null || n === '' ? '—' : Number(n).toLocaleString('pt-BR'); }
 function $(id) { return document.getElementById(id); }
@@ -518,7 +551,7 @@ function escolherTema() {
   const atual = temaEscolhido();
   f.innerHTML = '<div class="caixa" role="dialog" aria-label="Tema do app"><b style="font-size:16px">Tema do app</b>' +
     ['auto', 'claro', 'escuro'].map(function (t) {
-      return '<button class="' + (t === atual ? '' : 'sec') + '" onclick="definirTema(\'' + t + '\')">' + (t === atual ? '✓ ' : '') + nomeTema(t) + '</button>';
+      return '<button class="' + (t === atual ? '' : 'sec') + '" onclick="definirTema(' + jsArg(t) + ')">' + (t === atual ? '✓ ' : '') + nomeTema(t) + '</button>';
     }).join('') + '<button class="sec" onclick="fecharFolha()">Fechar</button></div>';
   document.body.appendChild(f);
 }
@@ -727,7 +760,7 @@ function cartaoTema() {
   TEMAS.forEach(function (t, i) {
     const campo = function (chave, rotulo) {
       return '<label class="sub" for="t' + i + '_' + chave + '"><b>' + rotulo + '</b></label>' +
-        '<textarea id="t' + i + '_' + chave + '" rows="3" style="' + estilo + '" oninput="temaCampo(' + i + ', \'' + chave + '\', this.value)">' + esc(t[chave] || '') + '</textarea>';
+        '<textarea id="t' + i + '_' + chave + '" rows="3" style="' + estilo + '" oninput="temaCampo(' + i + ', ' + jsArg(chave) + ', this.value)">' + esc(t[chave] || '') + '</textarea>';
     };
     h += '<div style="border:1px solid var(--linha);border-radius:12px;padding:10px;display:flex;flex-direction:column;gap:8px">' +
       '<div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><b>Tema ' + (i + 1) + '</b>' +
@@ -859,7 +892,7 @@ async function ampliarFoto(id) {
     const src = await run('apiFotoGrande', id);
     if (o.dataset.id !== id || o.style.display === 'none') return;
     const s = o.querySelector('span');
-    if (s) s.outerHTML = '<img src="' + src + '" alt="Foto ampliada" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">';
+    if (s && /^data:image\/[\w.+-]+;base64,[A-Za-z0-9+\/=]+$/.test(src)) s.outerHTML = '<img src="' + src + '" alt="Foto ampliada" style="max-width:100%;max-height:100%;object-fit:contain;border-radius:8px">';
   } catch (e) { fecharFoto(); falha(e); }
 }
 function fecharFoto() {
@@ -877,9 +910,9 @@ function gradeFotosVeic(v, k) {
   let h = '<div class="grade2">';
   fs.forEach(function (f, j) {
     h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
-      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (j + 1) + '" onclick="ampliarFoto(\'' + f.id + '\')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
-        : '<div onclick="ampliarFoto(\'' + f.id + '\')" style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
-      '<div style="padding:8px;display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="ampliarFoto(\'' + f.id + '\')">Ver</button>' +
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (j + 1) + '" onclick="ampliarFoto(' + jsArg(f.id) + ')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
+        : '<div onclick="ampliarFoto(' + jsArg(f.id) + ')" style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
+      '<div style="padding:8px;display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="ampliarFoto(' + jsArg(f.id) + ')">Ver</button>' +
       '<button class="sec peq" style="flex:1" onclick="excluirFotoVeic(' + k + ', ' + j + ')">Excluir</button></div></div>';
   });
   return h + '</div>';
@@ -955,7 +988,7 @@ marcar('veiculo', function () { verVeiculo(i); });
     if (E.vsec === k && v.fotos[k]) h += gradeFotosVeic(v, k);
     h += faixaFila('veic|' + r.mes + '|' + v.placa + '|' + k, 'filaV' + k);
   });
-  if (v.pastaUrl) h += '<a href="' + esc(v.pastaUrl) + '" target="_blank" class="sub">Abrir a pasta no Drive</a>';
+  if (urlSegura(v.pastaUrl)) h += '<a href="' + esc(urlSegura(v.pastaUrl)) + '" target="_blank" rel="noopener noreferrer" class="sub">Abrir a pasta no Drive</a>';
   h += '</section>';
 
   const l = v.leitura;
@@ -1302,7 +1335,7 @@ function listaEpi() {
     if (!g.length) return;
     h += '<div class="epi-grupo"><div class="epi-gtit"><span>' + esc(c) + '</span><span>' + g.length + '</span></div>';
     g.forEach(function (it) {
-      h += '<button class="epi-it" onclick="abrirEpi(\'' + it.id + '\')"><span class="nm"><b>' + esc(it.desc) + '</b>' +
+      h += '<button class="epi-it" onclick="abrirEpi(' + jsArg(it.id) + ')"><span class="nm"><b>' + esc(it.desc) + '</b>' +
         (it.tipo ? '<span class="epi-tag">' + esc(it.tipo) + '</span>' : '') + (it.var ? '<span class="epi-tag">' + esc(it.var) + '</span>' : '') + epiCaTag(it) +
         '</span><span class="epi-saldo ' + epiSit(it) + '">' + num(it.saldo) + '</span></button>';
     });
@@ -1324,10 +1357,10 @@ function abrirEpi(id) {
   const est = it.modo === 'estoque';
   folhaEpi('<b style="font-size:17px">' + esc(it.desc) + '</b>' +
     '<span class="sub">' + esc([it.cat, it.tipo, it.var].filter(Boolean).join(' · ')) + '</span>' +
-    '<div>' + epiCaTag(it) + (it.min ? '<span class="epi-tag">mínimo ' + it.min + '</span>' : '') + '</div>' +
+    '<div>' + epiCaTag(it) + (it.min ? '<span class="epi-tag">mínimo ' + esc(it.min) + '</span>' : '') + '</div>' +
     '<div class="epi-big" id="epiSaldo">' + num(it.saldo) + '</div><span class="sub" style="text-align:center">' + (est ? 'em estoque' : 'quantidade') + '</span>' +
     '<div class="epi-seg" id="epiSeg">' + ['ENTRADA', 'SAÍDA', 'CONTAGEM'].map(function (t) {
-      return '<button class="' + (t === 'SAÍDA' ? 'on' : '') + '" onclick="epiTipo(\'' + t + '\', this)">' + (t === 'ENTRADA' ? '+ Entrada' : t === 'SAÍDA' ? '− Saída' : 'Contagem') + '</button>';
+      return '<button class="' + (t === 'SAÍDA' ? 'on' : '') + '" onclick="epiTipo(' + jsArg(t) + ', this)">' + (t === 'ENTRADA' ? '+ Entrada' : t === 'SAÍDA' ? '− Saída' : 'Contagem') + '</button>';
     }).join('') + '</div>' +
     '<div class="epi-qtd"><button class="sec" onclick="epiPasso(-1)" aria-label="Menos">−</button><input id="epiQ" type="number" inputmode="numeric" min="0" value="1" aria-label="Quantidade"><button class="sec" onclick="epiPasso(1)" aria-label="Mais">+</button></div>' +
     '<div class="campo" id="epiColabC"><label for="epiColab">Entregue para (opcional)</label><input id="epiColab" list="epiColabs" autocapitalize="characters"><datalist id="epiColabs">' +
@@ -1339,7 +1372,7 @@ function abrirEpi(id) {
     '<div class="campo"><label for="epiVal">Validade do C.A (opcional)</label><input id="epiVal" type="date" value="' + esc(it.validadeIso) + '"></div>' +
     '<label class="epi-chk"><input id="epiTodos" type="checkbox" checked> Usar em todos os tamanhos/cores deste EPI</label>' +
     '<button class="sec" onclick="salvarCaEpi(this)">Salvar C.A</button>' +
-    '<button class="sec" onclick="formEpi(\'' + id + '\')">Editar cadastro (nome, tamanho, mínimo)</button>' +
+    '<button class="sec" onclick="formEpi(' + jsArg(id) + ')">Editar cadastro (nome, tamanho, mínimo)</button>' +
     '<div id="epiHist"><span class="sub">Carregando histórico…</span></div>' +
     '<button class="sec" onclick="fecharFolha()">Fechar</button>', 'EPI');
   run('apiEpiDetalhe', id).then(desenharHistEpi).catch(function () { const h = $('epiHist'); if (h) h.innerHTML = '<span class="sub">Histórico indisponível agora.</span>'; });
@@ -1417,7 +1450,7 @@ function formEpi(id) {
     '<div class="campo"><label for="feMin">Estoque mínimo (para avisar)</label><input id="feMin" type="number" inputmode="numeric" min="0" value="' + (it && it.min ? it.min : '') + '"></div>' +
     (it ? '<label class="epi-chk"><input id="feInativo" type="checkbox"> Tirar do controle (não aparece mais)</label>'
         : '<span class="sub">O saldo começa em zero: depois use “+ Entrada”. EPI novo entra no fim da categoria na planilha do mês.</span>') +
-    '<button onclick="salvarFormEpi(this, ' + (it ? '\'' + id + '\'' : 'null') + ')">Salvar</button>' +
+    '<button onclick="salvarFormEpi(this, ' + (it ? '' + jsArg(id) + '' : 'null') + ')">Salvar</button>' +
     '<button class="sec" onclick="fecharFolha()">Cancelar</button>', 'Cadastro de EPI');
 }
 async function salvarFormEpi(btn, id) {
@@ -1444,7 +1477,7 @@ function verFormularios() {
       const sub = f.foto ? 'Com a foto do colaborador designado' : (f.tipo === 'pdf' ? 'PDF pronto' : 'Data de emissão e obra preenchidas na hora');
       h += '<div class="item"><div class="info"><span class="t">' + esc(f.nome) + '</span><span class="sub">' + esc(sub) + '</span></div>' +
         '<div style="display:flex;gap:6px;flex-shrink:0">' +
-        (f.foto ? '<button class="sec peq" onclick="trocarFotoForm(\'' + f.id + '\')">Trocar foto</button>' : '') +
+        (f.foto ? '<button class="sec peq" onclick="trocarFotoForm(' + jsArg(f.id) + ')">Trocar foto</button>' : '') +
         '<button class="peq" onclick="abrirDoc(' + regDoc('form:' + f.id, f.nome) + ')">Baixar</button></div></div>';
     });
     h += '<p class="sub" style="margin-top:12px">Para incluir outro formulário, coloque o arquivo (Excel, PDF ou Planilha) na pasta 04_FORMULARIOS_PADRAO do Drive.</p>';
@@ -1567,7 +1600,7 @@ marcar('aloj', function () { verAloj(); });
       else if (c.nFotos && c.inspecao && c.inspecao.data) chip = '<span class="chip aviso">Pronto p/ gerar</span>';
       else if (!c.inspecao || !c.inspecao.data) chip = '<span class="chip cinza">Falta inspeção</span>';
       else chip = '<span class="chip cinza">Faltam fotos</span>';
-      h += '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (c.status !== 'ATIVA' ? ';opacity:.6' : '') + '" onclick="verCasa(\'' + esc(c.id) + '\')">' +
+      h += '<button class="item" style="width:100%;background:var(--card);border:none;border-bottom:1px solid var(--linha);border-radius:0;color:var(--texto);text-align:left;min-height:64px' + (c.status !== 'ATIVA' ? ';opacity:.6' : '') + '" onclick="verCasa(' + jsArg(c.id) + ')">' +
         '<div class="info"><span class="t">' + esc(c.identificacao) + '</span><span class="sub">' + c.nFotos + ' fotos' +
         (c.inspecao && c.inspecao.nNc ? ' · ' + c.inspecao.nNc + ' não conforme(s)' : '') + '</span></div>' + chip + '</button>';
     });
@@ -1626,7 +1659,7 @@ function desenharCasa() {
   h += '<div class="grade2">';
   d.fotos.forEach(function (f, i) {
     h += '<div style="border:1px solid var(--linha);border-radius:12px;overflow:hidden;display:flex;flex-direction:column">' +
-      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" onclick="ampliarFoto(\'' + f.id + '\')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
+      (f.thumb ? '<img src="' + f.thumb + '" alt="Foto ' + (i + 1) + '" onclick="ampliarFoto(' + jsArg(f.id) + ')" style="width:100%;aspect-ratio:4/3;object-fit:cover;background:var(--cinza-bg);cursor:zoom-in">'
                : '<div style="aspect-ratio:4/3;background:var(--cinza-bg)"></div>') +
       '<div style="padding:8px;display:flex;flex-direction:column;gap:6px"><span class="sub"><b>Foto ' + String(i + 1).padStart(2, '0') + '</b> · ' + esc(f.legenda || 'sem legenda') + '</span>' +
       '<div style="display:flex;gap:6px"><button class="sec peq" style="flex:1" onclick="trocarLegenda(' + i + ')">Legenda</button>' +
@@ -1655,7 +1688,7 @@ function desenharCasa() {
 
   // Dados da casa
   h += '<section class="card" style="display:flex;flex-direction:column;gap:12px"><span class="rotulo">DADOS DA CASA</span>' + camposCasa(c) +
-    '<button class="sec" onclick="salvarCasa(this,\'' + esc(c.id) + '\')">Salvar dados da casa</button>' +
+    '<button class="sec" onclick="salvarCasa(this,' + jsArg(c.id) + ')">Salvar dados da casa</button>' +
     (c.status === 'ATIVA' ? '<button class="sec" onclick="statusCasa(\'INATIVA\')">Desativar casa (entregue)</button>'
                           : '<button class="sec" onclick="statusCasa(\'ATIVA\')">Reativar casa</button>') + '</section>';
 
@@ -1811,7 +1844,9 @@ marcar('config', verConfig);
   const ses = sessaoApp();
   const op = [
     ['verObras()', 'Obra: ' + esc(nomeObra(obraApp())), (ses.obras || []).length > 1 ? 'Toque para trocar de obra' : 'Você entra só nesta obra'],
-  ].concat(ses.perfil === 'admin' ? [['cfgUsuarios()', 'Usuários e acessos', 'Logins, perfis e obras de cada pessoa'], ['cfgObras()', 'Obras', 'Cadastrar uma obra nova ou encerrar uma obra']] : []).concat([
+  ].concat(ses.perfil === 'admin' ? [['cfgUsuarios()', 'Usuários e acessos', 'Logins, perfis e obras de cada pessoa'], ['cfgObras()', 'Obras', 'Cadastrar uma obra nova ou encerrar uma obra'],
+    ['desconectarTodos()', 'Desconectar todos os aparelhos', 'Todo mundo (menos você) precisa entrar de novo']] : []).concat([
+    ['cfgMinhaSenha()', 'Trocar minha senha', 'Precisa da senha atual; desconecta seus outros aparelhos'],
     ['cfgParametros()', 'Parâmetros gerais', 'Obra, números dos documentos, responsáveis, e-mail, PDF'],
     ['cfgTabela(\'colaboradores\')', 'Colaboradores', 'Nome, função, ASO e treinamentos, DDS e fadiga'],
     ['cfgTabela(\'veiculos\')', 'Veículos', 'Frota, placas, operadores, km ou horímetro'],
@@ -1979,7 +2014,7 @@ marcar('agenda', function () { verAgenda(); });
 }
 
 function abasAgenda() {
-  const b = function (k, t) { return '<button class="' + (E.abaAg === k ? 'on' : '') + '" onclick="verAgenda(\'' + k + '\')">' + t + '</button>'; };
+  const b = function (k, t) { return '<button class="' + (E.abaAg === k ? 'on' : '') + '" onclick="verAgenda(' + jsArg(k) + ')">' + t + '</button>'; };
   return '<div class="abas">' + b('check', 'Checklist') + b('cal', 'Agenda') + b('graf', 'Desempenho') + '</div>';
 }
 
@@ -2010,7 +2045,7 @@ function desenharChecklist() {
       '<div class="info"><span class="t">' + esc(it.item) + ' · ' + esc(it.desc) + '</span>' +
       '<span class="sub">' + (it.data ? 'Marcado em ' + esc(it.data) : (it.auto ? 'Automático · ' + esc(it.detalhe) : 'Obra: ' + esc(it.respObra || '—'))) + '</span>' +
       (it.obs ? '<span class="sub">Obs.: ' + esc(it.obs) + '</span>' : '') +
-      (it.link ? '<a href="' + esc(it.link) + '" target="_blank" class="sub">Abrir arquivo</a>' : '') +
+      (urlSegura(it.link) ? '<a href="' + esc(urlSegura(it.link)) + '" target="_blank" rel="noopener noreferrer" class="sub">Abrir arquivo</a>' : '') +
       '<div style="display:flex;gap:6px;flex-wrap:wrap;margin-top:6px"><span class="' + st[0] + '">' + st[1] + '</span>' +
       '<button class="sec peq" onclick="detalheDoc(' + i + ')">Link / obs.</button>' +
       '<button class="sec peq" onclick="naDoc(' + i + ')">' + (it.status === 'NA' ? 'Aplica-se' : 'Não se aplica') + '</button></div></div></div>';
@@ -2101,10 +2136,10 @@ function desenharAgenda() {
   evs.forEach(function (e, k) {
     if (e.tipo === 'ativ') {
       h += '<div class="item" style="align-items:flex-start' + (e.feita ? ';opacity:.6' : '') + '">' +
-        '<input type="checkbox" aria-label="Concluída" ' + (e.feita ? 'checked' : '') + ' onchange="concluirAtiv(' + e.linha + ',this.checked)" style="width:24px;height:24px;min-height:auto;flex-shrink:0">' +
+        '<input type="checkbox" aria-label="Concluída" ' + (e.feita ? 'checked' : '') + ' onchange="concluirAtiv(' + Number(e.linha) + ',this.checked)" style="width:24px;height:24px;min-height:auto;flex-shrink:0">' +
         '<div class="info"><span class="t" style="font-weight:600' + (e.feita ? ';text-decoration:line-through' : '') + '">' + (e.hora ? esc(e.hora) + ' · ' : '') + esc(e.texto) + '</span>' +
         (e.obs ? '<span class="sub">' + esc(e.obs) + '</span>' : '') + '</div>' +
-        '<button class="sec peq" aria-label="Excluir atividade" onclick="removerAtiv(' + e.linha + ')">Excluir</button></div>';
+        '<button class="sec peq" aria-label="Excluir atividade" onclick="removerAtiv(' + Number(e.linha) + ')">Excluir</button></div>';
       return;
     }
     h += '<div class="item"><i style="width:10px;height:10px;border-radius:5px;display:block;flex-shrink:0;background:' + COR_EV[e.tipo] + '"></i>' +
@@ -2238,7 +2273,7 @@ function faixaFila(destino, id) {
       h += '<div style="position:relative;width:76px">' +
         '<img src="' + x.mini + '" alt="Foto aguardando envio" style="width:76px;height:57px;object-fit:cover;border-radius:8px;opacity:.8;border:1px dashed var(--linha)">' +
         (x.erro ? '<span style="position:absolute;left:4px;top:2px">⚠</span>' : '') +
-        '<button class="sec peq" aria-label="Tirar da fila" onclick="tirarFotoFila(\'' + x.chave + '\')" style="position:absolute;right:-6px;top:-8px;width:auto;min-height:0;padding:0 7px;line-height:22px">✕</button></div>';
+        '<button class="sec peq" aria-label="Tirar da fila" onclick="tirarFotoFila(' + jsArg(x.chave) + ')" style="position:absolute;right:-6px;top:-8px;width:auto;min-height:0;padding:0 7px;line-height:22px">✕</button></div>';
     });
     h += '</div>';
   }
